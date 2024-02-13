@@ -26,9 +26,14 @@ class Provider extends Authenticatable implements HasMedia
         return $this->belongsTo(City::class);
     }
 
-    public function country()
+    public function country(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Country::class);
+    }
+
+    public function bank_account(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(BankAccount::class);
     }
 
     public function scopeVerified($query): void

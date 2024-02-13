@@ -28,6 +28,7 @@ class ProviderController extends Controller
      */
     public function registerProvider(Request $request)
     {
+
         $validatedData = $request->validate([
             'first_name' => 'required|string|max:15',
             'last_name' => 'required|string|max:15',
@@ -49,8 +50,9 @@ class ProviderController extends Controller
             'back_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',
             'certificate' => 'required|image|mimes:jpeg,png,jpg|max:5120',
             'service_id' => 'required|array|exists:services,id',
+            'bank_account_name' => 'required|string|max:80',
+            'bank_account_iban' => 'required|string|max:35',
         ]);
-//        return $request->service_id;
 
         $duplicatedProvider = Provider::where('phone', $request->phone)->notVerified()->first();
         if ($duplicatedProvider){
@@ -60,7 +62,6 @@ class ProviderController extends Controller
 //            $provider->delete();
 //        });
 
-
         $provider = new Provider();
         $provider->first_name = $request->input('first_name');
         $provider->last_name = $request->input('last_name');
@@ -69,16 +70,23 @@ class ProviderController extends Controller
         $provider->country_id = $request->input('country_id');
         $provider->city_id = $request->input('city_id');
         $provider->save();
-//        if($request->hasFile('image') && $request->file('image')->isValid()){
-            $provider->addMediaFromRequest('personal')->toMediaCollection('personal');
-            $provider->addMediaFromRequest('front_id')->toMediaCollection('front_id');
-            $provider->addMediaFromRequest('back_id')->toMediaCollection('back_id');
-            $provider->addMediaFromRequest('certificate')->toMediaCollection('certificate');
-//        }
+
+        $mediaFields = ['personal', 'front_id', 'back_id', 'certificate'];
+        foreach ($mediaFields as $field) {
+//            if ($request->hasFile($field) && $request->file($field)->isValid()) {
+                $provider->addMediaFromRequest($field)->toMediaCollection($field);
+//            }
+        }
         $provider->services()->sync($request->service_id);
+        $provider->bank_account()->create([
+            'name' => $request->bank_account_name,
+            'iban' => $request->bank_account_iban,
+        ]);
 
+        $otpService = new OTPService();
+        $code = $otpService->generateOTP($provider);
 
-        return $this->respondWithResource(new ProviderResource($provider),'registered successfully');
+        return $this->respondWithResource(new ProviderResource($provider),'registered successfully, and otp sent');
     }
 
     public function login(Request $request)
@@ -92,7 +100,8 @@ class ProviderController extends Controller
         $provider = Provider::where('phone', $request->phone)->first();
 
         if (!$provider || !Hash::check($request->password, $provider->password)) {
-            return $this->respondNotFound('invalid phone or password');
+//            return $this->respondNotFound('invalid phone or password');
+            return $this->respondUnauthorized('Invalid phone or password');
         }
 
         if (!$provider->isVerified()) {
@@ -173,12 +182,13 @@ class ProviderController extends Controller
     public function resetPassword(Request $request): \Illuminate\Http\JsonResponse
     {
         $validatedData = $request->validate([
-            'phone' => 'required|string|max:15',
-            'otp' => 'required|string',
+//            'phone' => 'required|string|max:15',
+//            'otp' => 'required|string',
             'password' => 'required|string|confirmed|min:8',
         ]);
 
-        $provider = Provider::where('phone', $request->phone)->first();
+//        $provider = Provider::where('phone', $request->phone)->first();
+        $provider = $request->user();
         if (!$provider) {
             return $this->respondNotFound('provider not found');
         }
@@ -187,16 +197,17 @@ class ProviderController extends Controller
             $provider->save();
         }
 
-        // Check if OTP is valid using OTPService
-        if (!OTPService::verifyOTP($provider, $request->otp)) {
-            return $this->respondError('Invalid OTP', 401);
-        }
 
-        $provider->password = $request->password;
+//        // Check if OTP is valid using OTPService
+//        if (!OTPService::verifyOTP($provider, $request->otp)) {
+//            return $this->respondError('Invalid OTP', 401);
+//        }
+
+        $provider->password = Hash::make($request->password);
         $provider->save();
 
         // Clear the OTP after successful login using OTPService
-        OTPService::destroyOTPs($provider);
+//        OTPService::destroyOTPs($provider);
 
         $token = $provider->createToken('app-token')->plainTextToken;
         $provider->token = $token;

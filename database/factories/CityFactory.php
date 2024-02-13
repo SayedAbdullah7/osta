@@ -17,9 +17,10 @@ class CityFactory extends Factory
      */
     public function definition(): array
     {
+        $countries = Country::all();
         return [
             'name' => $this->faker->city,
-            'country_id' => Country::factory()->create()->id,
+            'country_id' => $countries->random(1)->first()->id,
             'created_at' => now(),
             'updated_at' => now(),
         ];

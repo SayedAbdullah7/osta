@@ -4,8 +4,10 @@ namespace App\Exceptions;
 
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
 use Throwable;
+use Illuminate\Auth\AuthenticationException;
 
 class Handler extends ExceptionHandler
 {
@@ -38,6 +40,27 @@ class Handler extends ExceptionHandler
             if($e instanceof ValidationException) {
                 return $this->respondValidationErrors($e);
             }
+
+            if ($e instanceof AuthenticationException) {
+                return $this->apiResponse(
+                    [
+                        'success' => false,
+                        'message' => 'Unauthenticated or Token Expired, Please Login'
+                    ],
+                    401
+                );
+            }
+
+            if ($e instanceof ThrottleRequestsException) {
+                return $this->apiResponse(
+                    [
+                        'success' => false,
+                        'message' => 'Too Many Requests,Please Slow Down'
+                    ],
+                    429
+                );
+            }
+
         }
         return parent::render($request, $e);
     }

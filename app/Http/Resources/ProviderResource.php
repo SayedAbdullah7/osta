@@ -25,6 +25,7 @@ class ProviderResource extends JsonResource
             'country' => new CountryResource($this->country),
             'city' => new CityResource($this->city),
             'services' => ServiceResource::collection($this->services),
+            'bank_account' => new BankAccountResource($this->bank_account),
 //            'remember_token' => $this->remember_token,
 //            'created_at' => $this->created_at,
 //            'updated_at' => $this->updated_at,

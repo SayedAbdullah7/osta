@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class CountryResource extends JsonResource
+class BankAccountResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -15,10 +15,10 @@ class CountryResource extends JsonResource
     public function toArray(Request $request): array
     {
 //        return parent::toArray($request);
-
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'iban' => $this->iban,
         ];
     }
 }

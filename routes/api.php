@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Traits\Helpers\ApiResponseTrait;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,10 +45,23 @@ Route::middleware([])->group(function () {
         Route::post('generate-otp', [\App\Http\Controllers\Api\ProviderController::class, 'generateOTP']);
 
         Route::post('verify', [\App\Http\Controllers\Api\ProviderController::class, 'verify']);
-
-        Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
-
+        Route::middleware(['auth:sanctum'])->group(function () {
+            Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
+        });
     });
 
+    Route::get('country', [\App\Http\Controllers\Api\CountryController::class, 'country_index']);
+
+    Route::get('city', [\App\Http\Controllers\Api\CountryController::class, 'city_index']);
+
+    Route::get('service', [\App\Http\Controllers\Api\ServiceController::class, 'index']);
+    Route::get( '/loin', function () {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthenticated or Token Expired, Please Login',
+            'result' => null,
+            'error_code' => 1
+        ], 401);
+    })->name('login');
 });
 
