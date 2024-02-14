@@ -14,14 +14,14 @@ class Provider extends Authenticatable implements HasMedia
     use HasFactory;
     use InteractsWithMedia;
     use HasApiTokens;
+    protected $guarded = [];
 
 
-    public function services()
+    public function services(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Service::class);
+        return $this->belongsToMany(Service::class,'provider_service');
     }
-
-    public function city()
+    public function city(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(City::class);
     }
@@ -35,6 +35,8 @@ class Provider extends Authenticatable implements HasMedia
     {
         return $this->hasOne(BankAccount::class);
     }
+
+
 
     public function scopeVerified($query): void
     {

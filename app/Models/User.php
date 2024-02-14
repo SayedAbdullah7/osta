@@ -61,5 +61,13 @@ class User extends Authenticatable
     {
         $this->is_phone_verified = 1;
     }
+    public function city()
+    {
+        return $this->belongsTo(City::class);
+    }
+    public function country()
+    {
+        return $this->belongsTo(Country::class);
+    }
 
 }
