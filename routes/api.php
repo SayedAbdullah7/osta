@@ -33,7 +33,19 @@ Route::middleware([])->group(function () {
         // Generate a new OTP for login
         Route::post('generate-otp', [\App\Http\Controllers\Api\UserController::class, 'generateOTP']);
 
+        Route::middleware('auth:sanctum')->group(function () {
+            //location
+            Route::get('location', [\App\Http\Controllers\Api\LocationController::class, 'index']);
+            Route::post('location', [\App\Http\Controllers\Api\LocationController::class, 'store']);
+
+            //order
+            Route::post('order', [\App\Http\Controllers\Api\OrderController::class, 'store']);
+            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'user_index']);
+        });
+
     });
+
+
     Route::prefix('provider')->group(function () {
         // Register a new provider with phone number
         Route::post('register', [\App\Http\Controllers\Api\ProviderController::class, 'registerProvider']);
@@ -45,8 +57,13 @@ Route::middleware([])->group(function () {
         Route::post('generate-otp', [\App\Http\Controllers\Api\ProviderController::class, 'generateOTP']);
 
         Route::post('verify', [\App\Http\Controllers\Api\ProviderController::class, 'verify']);
+
         Route::middleware(['auth:sanctum'])->group(function () {
+
             Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
+            //order
+            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'pending_index']);
+
         });
     });
 
@@ -54,7 +71,13 @@ Route::middleware([])->group(function () {
 
     Route::get('city', [\App\Http\Controllers\Api\CountryController::class, 'city_index']);
 
-    Route::get('service', [\App\Http\Controllers\Api\ServiceController::class, 'index']);
+    Route::get('service', [\App\Http\Controllers\Api\ServiceController::class, 'service_index']);
+
+    Route::get('sub_service', [\App\Http\Controllers\Api\ServiceController::class, 'sub_service_index']);
+
+
+
+
     Route::get( '/loin', function () {
         return response()->json([
             'success' => false,

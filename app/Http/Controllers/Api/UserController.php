@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
+use App\Models\Location;
 use App\Models\Provider;
 use App\Models\User;
 use App\Services\OTPService;
@@ -94,16 +95,17 @@ class UserController extends Controller
         if (!$user) {
             return $this->respondNotFound('User not found');
         }
-        if (!$user->isVerified()) {
-            $user->changeToVerify();
-            $user->save();
-        }
-
 
         // Check if OTP is valid using OTPService
         if (!OTPService::verifyOTP($user, $request->otp)) {
             return $this->respondError('Invalid OTP', 401);
         }
+
+        if (!$user->isVerified()) {
+            $user->changeToVerify();
+            $user->save();
+        }
+
 
         // OTP is valid, log in the user
 //        Auth::login($user);
@@ -138,5 +140,7 @@ class UserController extends Controller
         $code = $otpService->generateOTP($user);
         return $this->respondSuccess('OTP sent');
     }
+
+
 
 }

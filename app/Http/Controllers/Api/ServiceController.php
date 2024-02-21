@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProviderResource;
 use App\Http\Resources\ServiceResource;
+use App\Http\Resources\SubServiceResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Service;
+use App\Models\SubService;
 use Illuminate\Http\Request;
 
 class ServiceController extends Controller
@@ -15,11 +17,18 @@ class ServiceController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function service_index(): \Illuminate\Http\JsonResponse
     {
         return $this->respondWithResource(ServiceResource::collection(Service::all()),'');
     }
-
+    public function sub_service_index(): \Illuminate\Http\JsonResponse
+    {
+        $service_id = request()->service_id;
+        $cities = SubService::when($service_id, function ($query, $service_id) {
+            $query->where('service_id', $service_id);
+        })->get();
+        return $this->respondWithResource(SubServiceResource::collection($cities), '', 200);
+    }
     /**
      * Show the form for creating a new resource.
      */

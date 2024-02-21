@@ -65,9 +65,22 @@ class User extends Authenticatable
     {
         return $this->belongsTo(City::class);
     }
-    public function country()
+    public function country(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Country::class);
+    }
+    public function locations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Location::class);
+    }
+    public function default_location(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Location::class)->where('is_default',true);
+    }
+
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 
 }

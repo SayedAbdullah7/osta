@@ -39,7 +39,7 @@ trait ApiResponseTrait
      * @param array $headers
      * @return array
      */
-    public function parseGivenData($data = [], $statusCode = 200, $headers = [])
+    public function parseGivenData(array $data = [], int $statusCode = 200, array $headers = []): array
     {
         $responseStructure = [
             'success' => $data['success'],
@@ -88,13 +88,12 @@ trait ApiResponseTrait
     /**
      * Return generic json response with the given data.
      *
-     * @param       $data
+     * @param array $data
      * @param int $statusCode
      * @param array $headers
-     *
      * @return JsonResponse
      */
-    protected function apiResponse($data = [], $statusCode = 200, $headers = [])
+    protected function apiResponse(array $data = [], int $statusCode = 200, array $headers = []): JsonResponse
     {
         // https://laracasts.com/discuss/channels/laravel/pagination-data-missing-from-api-resource
 
@@ -274,7 +273,12 @@ trait ApiResponseTrait
     {
         return $this->respondError($message, 500);
     }
-
+    /**
+     * Respond with validation errors.
+     *
+     * @param ValidationException $exception
+     * @return JsonResponse
+     */
     protected function respondValidationErrors(ValidationException $exception)
     {
         return $this->apiResponse(
