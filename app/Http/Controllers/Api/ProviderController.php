@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterProviderRequest;
 use App\Http\Resources\ProviderResource;
 use App\Http\Resources\UserResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Provider;
 use App\Models\User;
 use App\Services\OTPService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -19,49 +21,33 @@ class ProviderController extends Controller
 {
     use ApiResponseTrait;
 
+    protected const MAX_IMAGE_SIZE = 5120;
+
+    protected $registrationRules;
+    protected $loginRules;
+
+    public function __construct()
+    {
+        $this->loginRules = [
+            'phone' => 'required|string|max:15',
+            'password' => 'required|string|min:8',
+        ];
+    }
 
     /**
-     * Register a new user with phone number.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
+     * Method to delete duplicate providers with unverified phone numbers
      */
-    public function registerProvider(Request $request)
+    protected function deleteDuplicateProviders($phone): void
     {
-
-        $validatedData = $request->validate([
-            'first_name' => 'required|string|max:15',
-            'last_name' => 'required|string|max:15',
-//            'phone' => 'required|string|size:15|unique:providers',
-            'phone' => [
-                'required',
-                'string',
-                'max:15',
-                Rule::unique('providers')->where(function ($query) {
-                    return $query->where('is_phone_verified', 1);
-                }),
-            ],
-            'is_phone_verified' => 'boolean',
-            'password' => 'required|string|confirmed|min:8',
-            'country_id' => 'required|exists:countries,id',
-            'city_id' => 'required|exists:cities,id',
-            'personal' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'front_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'back_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'certificate' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'service_id' => 'required|array|exists:services,id',
-            'bank_account_name' => 'required|string|max:80',
-            'bank_account_iban' => 'required|string|max:35',
-        ]);
-
-        $duplicatedProvider = Provider::where('phone', $request->phone)->notVerified()->first();
-        if ($duplicatedProvider){
+        $duplicatedProvider = Provider::where('phone', $phone)->notVerified()->first();
+        if ($duplicatedProvider) {
             $duplicatedProvider->delete();
         }
-//        $duplicatedProviders->each(function ($provider) {
-//            $provider->delete();
-//        });
+    }
 
+
+    protected function createProvider(Request $request): Provider
+    {
         $provider = new Provider();
         $provider->first_name = $request->input('first_name');
         $provider->last_name = $request->input('last_name');
@@ -71,36 +57,59 @@ class ProviderController extends Controller
         $provider->city_id = $request->input('city_id');
         $provider->save();
 
+        return $provider;
+    }
+
+    /**
+     * Method to handle media uploads for a provider
+     */
+    protected function handleMediaUploads(Provider $provider, Request $request): void
+    {
         $mediaFields = ['personal', 'front_id', 'back_id', 'certificate'];
+
         foreach ($mediaFields as $field) {
-//            if ($request->hasFile($field) && $request->file($field)->isValid()) {
-                $provider->addMediaFromRequest($field)->toMediaCollection($field);
-//            }
+            $provider->addMediaFromRequest($field)->toMediaCollection($field);
         }
+    }
+
+
+    protected function syncServicesAndBankAccount(Provider $provider, Request $request): void
+    {
         $provider->services()->sync($request->service_id);
         $provider->bank_account()->create([
             'name' => $request->bank_account_name,
             'iban' => $request->bank_account_iban,
         ]);
+    }
+
+    /**
+     * Register a new user with phone number.
+     *
+     * @param RegisterProviderRequest $request
+     * @return JsonResponse
+     */
+    public function registerProvider(RegisterProviderRequest $request): JsonResponse
+    {
+        $this->deleteDuplicateProviders($request->phone);
+
+        $provider = $this->createProvider($request);
+        $this->handleMediaUploads($provider, $request);
+        $this->syncServicesAndBankAccount($provider, $request);
 
         $otpService = new OTPService();
         $code = $otpService->generateOTP($provider);
 
-        return $this->respondWithResource(new ProviderResource($provider),'registered successfully, and otp sent');
+        return $this->respondWithResource(new ProviderResource($provider), 'registered successfully, and otp sent');
     }
 
     public function login(Request $request)
     {
-        $validatedData = $request->validate([
-            'phone' => 'required|string|max:15',
-            'password' => 'required|string|min:8',
-        ]);
+        $validatedData = $request->validate($this->loginRules);
 
 
         $provider = Provider::where('phone', $request->phone)->first();
 
         if (!$provider || !Hash::check($request->password, $provider->password)) {
-//            return $this->respondNotFound('invalid phone or password');
             return $this->respondUnauthorized('Invalid phone or password');
         }
 
@@ -120,10 +129,10 @@ class ProviderController extends Controller
     /**
      * Generate a new OTP for login.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
+     * @param Request $request
+     * @return JsonResponse
      */
-    public function generateOTP(Request $request): \Illuminate\Http\JsonResponse
+    public function generateOTP(Request $request): JsonResponse
     {
         $validatedData = $request->validate([
 //            'phone' => 'required|string|exists:users',
@@ -158,15 +167,15 @@ class ProviderController extends Controller
         if (!$provider) {
             return $this->respondNotFound('provider not found');
         }
-        if (!$provider->isVerified()) {
-            $provider->changeToVerify();
-            $provider->save();
-        }
-
 
         // Check if OTP is valid using OTPService
         if (!OTPService::verifyOTP($provider, $request->otp)) {
             return $this->respondError('Invalid OTP', 401);
+        }
+
+        if (!$provider->isVerified()) {
+            $provider->changeToVerify();
+            $provider->save();
         }
 
         // OTP is valid, log in the user
@@ -179,7 +188,8 @@ class ProviderController extends Controller
         $provider->token = $token;
         return $this->respondWithResource(new ProviderResource($provider), 'login successfully', 200);
     }
-    public function resetPassword(Request $request): \Illuminate\Http\JsonResponse
+
+    public function resetPassword(Request $request): JsonResponse
     {
         $validatedData = $request->validate([
 //            'phone' => 'required|string|max:15',
@@ -214,7 +224,6 @@ class ProviderController extends Controller
 
         return $this->respondWithResource(new ProviderResource($provider), 'password updated successfully', 200);
     }
-
 
 
 }

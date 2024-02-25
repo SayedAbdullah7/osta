@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->dateTime('start');
             $table->dateTime('end')->nullable();
-            $table->enum('warranty',['lev1','lev2','lev3'])->nullable();
-            $table->enum('status',['pending','accepted','coming','almost done','done'])->default('pending');
+            $table->enum('warranty_id', [\App\Enums\OrderWarrantyEnum::ONE, \App\Enums\OrderWarrantyEnum::TWO, \App\Enums\OrderWarrantyEnum::THREE])->nullable();
+            $table->enum('status', [\App\Enums\OrderStatusEnum::PENDING, \App\Enums\OrderStatusEnum::ACCEPTED, \App\Enums\OrderStatusEnum::COMING, \App\Enums\OrderStatusEnum::ALMOST_DONE, \App\Enums\OrderStatusEnum::DONE])->default(\App\Enums\OrderStatusEnum::PENDING);
             $table->text('desc');
             $table->mediumInteger('price')->unsigned()->nullable();
             $table->foreignIdFor(\App\Models\User::class)->constrained()->restrictOnDelete();

@@ -33,14 +33,14 @@ Route::middleware([])->group(function () {
         // Generate a new OTP for login
         Route::post('generate-otp', [\App\Http\Controllers\Api\UserController::class, 'generateOTP']);
 
-        Route::middleware('auth:sanctum')->group(function () {
+        Route::middleware('auth:user')->group(function () {
             //location
             Route::get('location', [\App\Http\Controllers\Api\LocationController::class, 'index']);
             Route::post('location', [\App\Http\Controllers\Api\LocationController::class, 'store']);
 
             //order
             Route::post('order', [\App\Http\Controllers\Api\OrderController::class, 'store']);
-            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'user_index']);
+            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'user_orders_index']); // for user
         });
 
     });
@@ -58,11 +58,11 @@ Route::middleware([])->group(function () {
 
         Route::post('verify', [\App\Http\Controllers\Api\ProviderController::class, 'verify']);
 
-        Route::middleware(['auth:sanctum'])->group(function () {
+        Route::middleware(['auth:provider'])->group(function () {
 
             Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
             //order
-            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'pending_index']);
+            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'pending_index']); // for providers
 
         });
     });

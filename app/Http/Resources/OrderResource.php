@@ -19,7 +19,7 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'start' => $this->start,
             'end' => $this->end,
-            'warranty' => $this->warranty,
+            'warranty_id' => $this->warranty_id,
             'status' => $this->status,
             'desc' => $this->desc,
             'price' => $this->price,

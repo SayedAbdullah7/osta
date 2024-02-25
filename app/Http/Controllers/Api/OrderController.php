@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderWarrantyEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
@@ -37,13 +38,12 @@ class OrderController extends Controller
     {
         $perPage = $request->input('per_page', 20);
         $sortBy = $request->input('sort_by', 'id');
-        $sortDesc = $request->input('sort_desc', true);
+        $sortDesc = $request->input('sort_desc', $sortBy === 'id');
 
         $provider = $request->user();
 
         $providerLongitude = $request->longitude;
         $providerLatitude = $request->latitude;
-        $order_by = $request->order_by;
         $serviceIds = $request->service_id;
 
         $providerServiceIds = $provider->services()->when($serviceIds, function ($query) use ($serviceIds) {
@@ -51,7 +51,7 @@ class OrderController extends Controller
         })->pluck('services.id')->toArray();
 
         $query = Order::with('location')->pending()->whereIn('service_id', $providerServiceIds);
-        $query = $this->applyOrderBy($query, $order_by, $providerLatitude, $providerLongitude);
+        $query = $this->applyOrderBy($query, $sortBy, $sortDesc, $providerLatitude, $providerLongitude);
 
         $orders = $query->simplePaginate($perPage);
 
@@ -61,20 +61,21 @@ class OrderController extends Controller
      * Apply custom ordering based on user input.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $order_by
+     * @param string $sortBy
+     * @param bool $sortDesc
      * @param float|null $providerLatitude
      * @param float|null $providerLongitude
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    private function applyOrderBy(\Illuminate\Database\Eloquent\Builder $query, string $order_by, ?float $providerLatitude, ?float $providerLongitude): \Illuminate\Database\Eloquent\Builder
+    private function applyOrderBy(\Illuminate\Database\Eloquent\Builder $query, string $sortBy, bool $sortDesc, ?float $providerLatitude, ?float $providerLongitude): \Illuminate\Database\Eloquent\Builder
     {
-        return $query->when($order_by === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude) {
+        return $query->when($sortBy === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude, $sortDesc) {
             $haversine = Order::calculateHaversineDistance($providerLatitude, $providerLongitude);
             return $query->select('orders.*', $haversine)
                 ->join('locations', 'orders.location_id', '=', 'locations.id')
-                ->orderBy('distance');
-        }, function ($query) use ($order_by) {
-            return $query->orderBy($order_by === 'time' ? 'start' : 'id');
+                ->orderBy('distance', $sortDesc ? 'desc' : 'asc');
+        }, function ($query) use ($sortBy, $sortDesc) {
+            return $query->orderBy($sortBy === 'time' ? 'start' : 'id', $sortDesc ? 'desc' : 'asc');
         });
     }
 
@@ -101,50 +102,22 @@ class OrderController extends Controller
     public function store(StoreOrderRequest $request)
     {
         $user = $request->user();
-        // Validate the request data
-        $validatedData = $request->validate([
-            'start' => 'required|date_format:Y-m-d H:i',
-            'end' => 'nullable|date_format:Y-m-d H:i',
-            'warranty' => 'nullable|in:lev1,lev2,lev3',
-            'status' => 'nullable|in:pending,accepted,coming,almost done,done',
-            'desc' => 'required|string|max:255',
-//            'price' => 'required|numeric|min:1',
-//            'user_id' => 'required|exists:users,id',
-            'service_id' => 'required|exists:services,id',
-//            'location_id' => 'required|exists:locations,id',
-            'location_id' => [
-                'required',
-                Rule::exists('locations', 'id')->where(function ($query) use ($request, $user) {
-                    $query->where('user_id', $user->id);
-                }),
-            ],
-//            'sub_services' => 'array',
-            'sub_services.*.sub_service_id' => 'required|exists:sub_services,id',
-            'sub_services.*.sub_service_quantity' => 'required|integer`|min:1`',
-            'sub_services' => function ($attribute, $value, $fail) {
-                // Custom validation rule to check if sub_service_id and quantity have the same number of entries
-                $subServiceIds = array_column($value, 'sub_service_id');
-                $quantities = array_column($value, 'sub_service_quantity');
-
-                if (count($subServiceIds) !== count($quantities)) {
-                    $fail('The number of sub_service_id entries must match the number of sub_service_quantity entries.');
-                }
-            },
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // Adjust the allowed file types and size
-        ]);
-        $user = $request->user();
         try {
             DB::beginTransaction();
+
+            $validatedData = $request->validated();
+
             // Create a new order
             $order = new Order;
             $order->start = $validatedData['start'];
             $order->end = $validatedData['end'];
-            $order->warranty = $validatedData['warranty'];
+            $order->warranty_id = $validatedData['warranty_id'] ?? null;
             $order->desc = $validatedData['desc'];
-            $order->user_id = $user->id;
             $order->service_id = $validatedData['service_id'];
             //$order->provider_id = $validatedData['provider_id'];
             $order->location_id = $validatedData['location_id'];
+
+            $order->user_id = $user->id;
             $order->save();
 
             // Attach sub_services to the order with quantities
@@ -166,7 +139,7 @@ class OrderController extends Controller
             throw new Exception($e);
         }
 
-
+        $order->refresh();
         $order->load('subServices', 'service', 'user', 'location');
         return $this->respondWithResource(new OrderResource($order), 'order created successfully');
     }

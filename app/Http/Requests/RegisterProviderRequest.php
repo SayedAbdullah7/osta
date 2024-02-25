@@ -7,6 +7,7 @@ use Illuminate\Validation\Rule;
 
 class RegisterProviderRequest extends FormRequest
 {
+    protected const MAX_IMAGE_SIZE = 5120;
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -37,10 +38,14 @@ class RegisterProviderRequest extends FormRequest
             'password' => 'required|string|confirmed|min:8',
             'country_id' => 'required|exists:countries,id',
             'city_id' => 'required|exists:cities,id',
-            'personal' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'front_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'back_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-            'certificate' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+//            'personal' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+//            'front_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+//            'back_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+//            'certificate' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+            'personal' => 'required|' . self::MAX_IMAGE_SIZE,
+            'front_id' => 'required|' . self::MAX_IMAGE_SIZE,
+            'back_id' => 'required|' . self::MAX_IMAGE_SIZE,
+            'certificate' => 'required|' . self::MAX_IMAGE_SIZE,
             'service_id' => 'required|array|exists:services,id',
             'bank_account_name' => 'required|string|max:80',
             'bank_account_iban' => 'required|string|max:35',
