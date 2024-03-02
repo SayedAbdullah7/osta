@@ -120,12 +120,20 @@ class OrderController extends Controller
             $order->user_id = $user->id;
             $order->save();
 
-            // Attach sub_services to the order with quantities
-            if (isset($validatedData['sub_services']) && is_array($validatedData['sub_services'])) {
-                foreach ($validatedData['sub_services'] as $subService) {
-                    $order->subServices()->attach($subService['sub_service_id'], ['quantity' => $subService['sub_service_quantity']]);
+            // Attach sub-services to the order with quantities
+            if ($request->has('sub_services_ids') && $request->has('sub_service_quantities')) {
+                $subServices = $request->input('sub_services_ids');
+                $quantities = $request->input('sub_service_quantities');
+
+                // Ensure the number of sub-services and quantities match
+                if (count($subServices) === count($quantities)) {
+                    $order->subServices()->attach(array_combine($subServices, $quantities));
+                } else {
+                    // Handle mismatch error as needed
+//                    return response()->json(['error' => 'Sub-services and quantities must match.'], 422);
                 }
             }
+
 
             // Attach images to the order
             if ($request->hasFile('images')) {

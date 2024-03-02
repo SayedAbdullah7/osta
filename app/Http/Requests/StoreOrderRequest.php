@@ -40,17 +40,17 @@ class StoreOrderRequest extends FormRequest
             'sub_services' => [
                 'array',
                 function ($attribute, $value, $fail) {
-                    // Custom validation rule to check if sub_service_id and quantity have the same number of entries
-                    $subServiceIds = array_column($value, 'sub_service_id');
-                    $quantities = array_column($value, 'sub_service_quantity');
+                    // Custom validation rule to check if sub_services_ids and quantity have the same number of entries
+                    $subServiceIds = array_column($value, 'sub_services_ids');
+                    $quantities = array_column($value, 'sub_service_quantities');
 
                     if (count($subServiceIds) !== count($quantities)) {
-                        $fail('The number of sub_service_id entries must match the number of sub_service_quantity entries.');
+                        $fail('The number of sub_services_ids entries must match the number of sub_service_quantities entries.');
                     }
                 },
             ],
-            'sub_services.*.sub_service_id' => 'required|exists:sub_services,id',
-            'sub_services.*.sub_service_quantity' => 'required|integer|min:1',
+            'sub_services.*.sub_services_ids' => 'required|exists:sub_services,id',
+            'sub_services.*.sub_service_quantities' => 'required|integer|min:1',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ];
 
