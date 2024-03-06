@@ -21,7 +21,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::middleware([])->group(function () {
 
     Route::prefix('user')->group(function () {
-
         Route::post('check-phone', [\App\Http\Controllers\Api\UserController::class, 'checkPhone']);
 
         // Register a new user with phone number
@@ -39,8 +38,11 @@ Route::middleware([])->group(function () {
             Route::post('location', [\App\Http\Controllers\Api\LocationController::class, 'store']);
 
             //order
-            Route::post('order', [\App\Http\Controllers\Api\OrderController::class, 'store']);
-            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'user_orders_index']); // for user
+            Route::post('order', [\App\Http\Controllers\Api\User\OrderController::class, 'store']);
+            Route::get('order', [\App\Http\Controllers\Api\User\OrderController::class, 'user_orders_index']); // for user
+
+
+            Route::get('order/{order}/offer', [\App\Http\Controllers\Api\User\OfferController::class, 'index']); // my orders for providers
         });
 
     });
@@ -62,7 +64,15 @@ Route::middleware([])->group(function () {
 
             Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
             //order
-            Route::get('order', [\App\Http\Controllers\Api\OrderController::class, 'pending_index']); // for providers
+            Route::get('order', [\App\Http\Controllers\Api\Provider\OrderController::class, 'pending_index']); // for providers
+
+            Route::get('my-orders', [\App\Http\Controllers\Api\Provider\OrderController::class, 'provider_orders_index']); // my orders for providers
+
+            Route::patch('order/{order}/accept', [\App\Http\Controllers\Api\Provider\OrderController::class, 'accept']); // my orders for providers
+
+            Route::patch('order/{order}/cancel', [\App\Http\Controllers\Api\Provider\OrderController::class, 'cancel']); // my orders for providers
+
+            Route::get('my-offers', [\App\Http\Controllers\Api\Provider\OfferController::class, 'index']); // my orders for providers
 
         });
     });
@@ -74,9 +84,6 @@ Route::middleware([])->group(function () {
     Route::get('service', [\App\Http\Controllers\Api\ServiceController::class, 'service_index']);
 
     Route::get('sub_service', [\App\Http\Controllers\Api\ServiceController::class, 'sub_service_index']);
-
-
-
 
     Route::get( '/loin', function () {
         return response()->json([

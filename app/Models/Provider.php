@@ -36,6 +36,20 @@ class Provider extends Authenticatable implements HasMedia
         return $this->hasOne(BankAccount::class);
     }
 
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function offers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Offer::class);
+    }
+
+//    public function orderCancellations()
+//    {
+//        return $this->hasMany(OrderCancellation::class);
+//    }
 
 
     public function scopeVerified($query): void

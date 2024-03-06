@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('sub_services', function (Blueprint $table) {
+        Schema::create('order_cancellations', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->mediumInteger('min_price')->unsigned()->nullable();
-            $table->mediumInteger('max_price')->unsigned()->nullable();
-            $table->foreignIdFor(\App\Models\Service::class)->constrained()->restrictOnDelete();
+            $table->unsignedBigInteger('order_id');
+            $table->unsignedBigInteger('provider_id');
             $table->timestamps();
+
+            $table->foreign('order_id')->references('id')->on('orders');
+            $table->foreign('provider_id')->references('id')->on('providers');
         });
     }
 
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('sub_services');
+        Schema::dropIfExists('order_cancellations');
     }
 };

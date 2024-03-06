@@ -83,4 +83,9 @@ class User extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    public function device_tokens(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(DeviceToken::class,'userable');
+    }
+
 }

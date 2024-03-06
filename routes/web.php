@@ -16,3 +16,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/test', function () {
+    return  \App\Enums\OfferStatusEnum::cases();
+
+    return App\Services\NotificationService::sendNotification('test', 'test', 'test');
+    return view('welcome');
+});

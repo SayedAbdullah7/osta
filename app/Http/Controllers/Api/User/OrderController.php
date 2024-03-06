@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\User;
 
 use App\Enums\OrderWarrantyEnum;
 use App\Http\Controllers\Controller;
@@ -79,11 +79,19 @@ class OrderController extends Controller
         });
     }
 
-    public function user_orders_index()
+    public function user_orders_index(): JsonResponse
     {
         $user = request()->user();
 
         $orders = $user->orders()->get();
+
+        return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
+    }
+    public function provider_orders_index(Request $request): JsonResponse
+    {
+        $provider = $request->user();
+
+        $orders = $provider->orders()->get();
 
         return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
     }
@@ -152,13 +160,6 @@ class OrderController extends Controller
         return $this->respondWithResource(new OrderResource($order), 'order created successfully');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Order $order)
-    {
-        //
-    }
 
     /**
      * Show the form for editing the specified resource.

@@ -34,10 +34,25 @@ class Order extends Model implements HasMedia
         return $this->belongsTo(Location::class);
     }
 
+    public function offers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Offer::class);
+    }
+
+    public function cancellationProviders(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Provider::class, 'order_cancellations');
+    }
+
     public function scopePending($query): void
     {
         $query->where('status', OrderStatusEnum::PENDING);
     }
+    public function scopeAvailableToAccept($query): void
+    {
+        $query->where('status', OrderStatusEnum::PENDING)->where('provider_id', null);
+    }
+
     /**
      * Calculate the Haversine distance between two geographical coordinates.
      *
@@ -48,5 +63,19 @@ class Order extends Model implements HasMedia
     public static function calculateHaversineDistance(float $providerLatitude, float $providerLongitude): Expression
     {
         return DB::raw('ROUND((6371 * acos(cos(radians(' . $providerLatitude . ')) * cos(radians(locations.latitude)) * cos(radians(locations.longitude) - radians(' . $providerLongitude . ')) + sin(radians(' . $providerLatitude . ')) * sin(radians(locations.latitude)))), 2) AS distance');
+    }
+
+    public function isAvailableToAccept(): bool
+    {
+        return $this->status === OrderStatusEnum::PENDING;
+    }
+    public function isAvailableToCancel(): bool
+    {
+        return (!$this->provider_id && $this->status === OrderStatusEnum::PENDING);
+    }
+
+    public function isAvailableToSendOffer(): bool
+    {
+        return $this->status === OrderStatusEnum::PENDING;
     }
 }
