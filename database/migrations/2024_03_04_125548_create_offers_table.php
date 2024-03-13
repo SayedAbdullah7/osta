@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->mediumInteger('price')->unsigned();
             $table->enum('status', array_column(\App\Enums\OfferStatusEnum::cases(), 'value'))->default(\App\Enums\OfferStatusEnum::PENDING);
+            $table->boolean('is_second')->default(false);
             $table->foreignIdFor(\App\Models\Provider::class)->constrained()->restrictOnDelete()->cascadeOnUpdate();
             $table->foreignIdFor(\App\Models\Order::class)->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->timestamps();
