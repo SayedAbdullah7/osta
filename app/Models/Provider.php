@@ -8,12 +8,16 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\HasMedia;
 use Laravel\Sanctum\HasApiTokens;
-
-class Provider extends Authenticatable implements HasMedia
+use Bavix\Wallet\Traits\HasWallet;
+use Bavix\Wallet\Interfaces\Wallet;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+class Provider extends Authenticatable implements HasMedia,Wallet
 {
     use HasFactory;
     use InteractsWithMedia;
     use HasApiTokens;
+    use HasWallet;
+
     protected $guarded = [];
 
 
@@ -68,5 +72,15 @@ class Provider extends Authenticatable implements HasMedia
     public function changeToVerify(): void
     {
         $this->is_phone_verified = 1;
+    }
+
+    /**
+     * Get the user's first name.
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->first_name,
+        );
     }
 }

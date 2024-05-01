@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\Provider;
 
-use App\Enums\OfferStatusEnum;
+use App\Enums\OrderCategoryEnum;
 use App\Enums\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OfferResource;
@@ -29,9 +29,16 @@ class OfferController extends Controller
         return $this->providerOfferService->getOffersForProvider($providerId);
     }
 
-    public function sendOffer(SendOfferRequest $request)
+    public function sendOffer(SendOfferRequest $request): \Illuminate\Http\JsonResponse
     {
-        return $this->providerOfferService->sendOffer($request->validated());
+//        $request->validated();
+//        $orderId = $data['order_id'];
+//        $providerId = $data['provider_id'];
+//        $price = $data['price'];
+        $data = $request->validated();
+        // $data = $request->all();
+        $data['provider_id'] = auth('provider')->id();
+        return $this->providerOfferService->sendOffer($data);
     }
 
 //    /**

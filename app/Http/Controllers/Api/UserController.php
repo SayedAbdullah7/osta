@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterUserRequest;
 use App\Http\Resources\UserResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Location;
@@ -11,108 +12,119 @@ use App\Models\User;
 use App\Services\OTPService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
+/**
+ * Class UserController
+ * @package App\Http\Controllers\Api
+ */
 class UserController extends Controller
 {
     use ApiResponseTrait;
 
-    public function checkPhone(Request $request)
+    /**
+     * Check if a phone number is registered.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws ValidationException
+     */
+    public function checkPhoneRegistered(Request $request): \Illuminate\Http\JsonResponse
     {
+        // Validate the incoming request
         $validatedData = $request->validate([
             'phone' => 'required|string|max:15',
         ]);
 
-
+        // Check if the user is verified and has the provided phone number
         $user = User::verified()->where('phone', $request->phone)->first();
 
+        // If the user does not exist, respond with a success message
         if (!$user) {
             return $this->respondSuccess('complete register process');
         }
 
+        // Generate an OTP for the user
         $otpService = new OTPService();
-        $code = $otpService->generateOTP($user);
+        $otpService->generateOTP($user);
         return $this->respondSuccess('OTP send');
     }
 
     /**
      * Register a new user with phone number.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param RegisterUserRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function register(Request $request)
+    public function register(RegisterUserRequest $request): \Illuminate\Http\JsonResponse
     {
-        $validatedData = $request->validate([
-            'email' => 'email|unique:users|max:255',
-            'phone' => [
-                'required',
-                'string',
-                'max:15',
-                Rule::unique('users')->where(function ($query) {
-                    return $query->where('is_phone_verified', 1);
-                }),
-            ],
-            'country_id' => 'exists:countries,id',
-            'gender' => 'required|in:male,female',
-        ]);
-
+        // Delete any unverified users with the same phone number
         User::where('phone', $request->phone)->notVerified()->delete();
 
-        $user = new User();
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->phone = $request->phone;
-        $user->country_id = $request->country_id;
-        $user->gender = $request->gender = 'male' ? 1 : 0;
-        $user->save();
+        // Create a new user and send them an OTP
+        $user = DB::transaction(function () use ($request) {
 
-        // Send verification code via SMS using
-        $otpService = new OTPService();
-        $code = $otpService->generateOTP($user);
+            $user = new User();
+            $user->name = $request->name;
+            $user->email = $request->email;
+            $user->phone = $request->phone;
+            $user->country_id = $request->country_id;
+            $user->gender = $request->gender == 'male' ? 1 : 0;
+            $user->date_of_birth = $request->date_of_birth;
+            $user->save();
 
+            // If the request has an image, add it to the user's profile
+            if ($request->hasFile('personal')) {
+                $user->addMediaFromRequest('personal')->toMediaCollection('personal');
+            }
 
+            // Send verification code via SMS
+            $otpService = new OTPService();
+            $otpService->generateOTP($user);
+            return $user;
+        });
         return $this->respondWithResource(new UserResource($user), 'registered successfully, and otp sent');
     }
 
     /**
      * Login user with OTP.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function login(Request $request)
     {
+        // Validate the incoming request
         $validatedData = $request->validate([
             'phone' => 'required|string|max:15',
             'otp' => 'required|string',
         ]);
 
-
-        $user = User::where('phone', $request->phone)->first();
+        // Find the user
+        $user = $this->getUserByPhone($request->phone);
         if (!$user) {
             return $this->respondNotFound('User not found');
         }
 
-        // Check if OTP is valid using OTPService
+        // Check if the OTP is valid
         if (!OTPService::verifyOTP($user, $request->otp)) {
             return $this->respondError('Invalid OTP', 401);
         }
 
+        // If the user is not verified, verify them
         if (!$user->isVerified()) {
             $user->changeToVerify();
             $user->save();
         }
 
-
-        // OTP is valid, log in the user
-//        Auth::login($user);
-
-        // Clear the OTP after successful login using OTPService
+        // Clear the OTP after successful login
         OTPService::destroyOTPs($user);
 
+        // Create a new token for the user
         $token = $user->createToken('app-token')->plainTextToken;
         $user->token = $token;
         return $this->respondWithResource(new UserResource($user), 'login successfully', 200);
@@ -121,26 +133,38 @@ class UserController extends Controller
     /**
      * Generate a new OTP for login.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function generateOTP(Request $request): \Illuminate\Http\JsonResponse
     {
+        // Validate the incoming request
         $validatedData = $request->validate([
             'phone' => 'required|string|max:15',
         ]);
 
-        $user = User::where('phone', $request->phone)->first();
+        // Find the user
+        $user = $this->getUserByPhone($request->phone);
 
+        // If the user does not exist, respond with an error
         if (!$user) {
             return $this->respondNotFound('User not found');
         }
 
+        // Generate an OTP for the user
         $otpService = new OTPService();
         $code = $otpService->generateOTP($user);
         return $this->respondSuccess('OTP sent');
     }
 
-
-
+    /**
+     * Get a user by their phone number.
+     *
+     * @param $phone
+     * @return mixed
+     */
+    protected function getUserByPhone($phone)
+    {
+        return User::where('phone', $phone)->first();
+    }
 }

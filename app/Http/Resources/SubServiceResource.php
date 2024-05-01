@@ -14,6 +14,20 @@ class SubServiceResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+//        return parent::toArray($request);
+        $data= [
+            'id' => $this->id,
+            'name' => $this->name,
+//            'min_price' => $this->min_price,
+            'max_price' => $this->max_price,
+            'type' => $this->type,
+            'service' => new ServiceResource($this->whenLoaded('service')),
+        ];
+        if ($this->pivot) {
+            $data += [
+                'quantity' => $this->pivot->quantity,
+            ];
+        }
+        return $data;
     }
 }

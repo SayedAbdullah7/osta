@@ -17,7 +17,11 @@ return new class extends Migration
             $table->string('last_name',15);
             $table->string('phone',15)->unique();
             $table->boolean('is_phone_verified')->default(0);
-            $table->string('password');
+//            $table->string('email')->unique()->nullable();
+            $table->string('email')->nullable();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->boolean('gender');
+//            $table->string('password');
             $table->foreignIdFor(\App\Models\Country::class)->constrained()->restrictOnDelete();
             $table->foreignIdFor(\App\Models\City::class)->constrained()->restrictOnDelete();
             //            $table->enum('account',['evidence','specialization','bank account']);

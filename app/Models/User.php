@@ -3,14 +3,23 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\MediaLibrary\HasMedia;
+use Bavix\Wallet\Traits\HasWallet;
+use Bavix\Wallet\Interfaces\Wallet;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class User extends Authenticatable
+class User extends Authenticatable implements Wallet,HasMedia
 {
     use HasApiTokens, HasFactory, Notifiable;
+    use HasWallet;
+    use InteractsWithMedia;
+
+
 
     /**
      * The attributes that are mass assignable.
@@ -87,5 +96,12 @@ class User extends Authenticatable
     {
         return $this->morphMany(DeviceToken::class,'userable');
     }
+//
+//    public  function messengerColor(): Attribute
+//    {
+//        return Attribute::make(
+//            get: fn (string $value) => 'a'),
+//        );
+//    }
 
 }

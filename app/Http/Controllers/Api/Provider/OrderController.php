@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Provider;
 
+use App\Enums\OrderStatusEnum;
 use App\Enums\OrderWarrantyEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
@@ -13,6 +14,7 @@ use App\Models\Country;
 use App\Models\Location;
 use App\Models\Order;
 use App\Models\Provider;
+use App\Repositories\Interfaces\OrderRepositoryInterface;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,78 +27,34 @@ class OrderController extends Controller
 {
     use ApiResponseTrait;
 
+    private $orderRepository;
+
+    public function __construct(OrderRepositoryInterface $orderRepository)
+    {
+        $this->orderRepository = $orderRepository;
+    }
+
+
+    public function getPendingOrders(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $provider = $request->user();
+        $orders = $this->orderRepository->getAvailablePaginatedPendingOrdersForProvider($request->all(), $provider);
+
+        return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
+    }
+
+
     /**
-     * Retrieve and return a paginated list of pending orders associated with the authenticated provider.
-     *
-     * This method handles the logic for retrieving pending orders based on various parameters,
-     * including the provider's services, location, and user-defined sorting criteria.
+     * Retrieve and return a paginated list of orders associated with the authenticated provider.
      *
      * @param Request $request
      * @return JsonResponse
      */
-    public function pending_index(Request $request): \Illuminate\Http\JsonResponse
-    {
-        $perPage = $request->input('per_page', 20);
-        $sortBy = $request->input('sort_by', 'id');
-        $sortDesc = $request->input('sort_desc', $sortBy === 'id');
-
-        $provider = $request->user();
-        $providerId = $provider->id;
-
-        $providerLongitude = $request->longitude;
-        $providerLatitude = $request->latitude;
-        $serviceIds = $request->service_id;
-
-        $providerServiceIds = $provider->services()->when($serviceIds, function ($query) use ($serviceIds) {
-            $query->whereIn('services.id', $serviceIds);
-        })->pluck('services.id')->toArray();
-
-        $query = Order::with('location')->pending()->whereIn('service_id', $providerServiceIds)->whereDoesntHave('cancellationProviders', function ($query) use ($providerId) {
-            $query->where('provider_id', $providerId);
-        });
-        $query = $this->applyOrderBy($query, $sortBy, $sortDesc, $providerLatitude, $providerLongitude);
-
-        $orders = $query->simplePaginate($perPage);
-
-        return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
-    }
-
-    /**
-     * Apply custom ordering based on user input.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $sortBy
-     * @param bool $sortDesc
-     * @param float|null $providerLatitude
-     * @param float|null $providerLongitude
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    private function applyOrderBy(\Illuminate\Database\Eloquent\Builder $query, string $sortBy, bool $sortDesc, ?float $providerLatitude, ?float $providerLongitude): \Illuminate\Database\Eloquent\Builder
-    {
-        return $query->when($sortBy === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude, $sortDesc) {
-            $haversine = Order::calculateHaversineDistance($providerLatitude, $providerLongitude);
-            return $query->select('orders.*', $haversine)
-                ->join('locations', 'orders.location_id', '=', 'locations.id')
-                ->orderBy('distance', $sortDesc ? 'desc' : 'asc');
-        }, function ($query) use ($sortBy, $sortDesc) {
-            return $query->orderBy($sortBy === 'time' ? 'start' : 'id', $sortDesc ? 'desc' : 'asc');
-        });
-    }
-
-    public function user_orders_index(): JsonResponse
-    {
-        $user = request()->user();
-
-        $orders = $user->orders()->get();
-
-        return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
-    }
-
-    public function provider_orders_index(Request $request): JsonResponse
+    public function getProviderOrders(Request $request): JsonResponse
     {
         $provider = $request->user();
 
-        $orders = $provider->orders()->get();
+        $orders = $this->orderRepository->getProviderOrders($provider);
 
         return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
     }
@@ -104,164 +62,89 @@ class OrderController extends Controller
     /**
      * Display the specified resource.
      */
-    public function cancel($orderId): JsonResponse
+    public function remove($orderId): JsonResponse
     {
         $provider = request()->user();
-        $order = Order::find($orderId);
-        if ($order && $order->isAvailableToCancel()) {
+        $order = $this->orderRepository->find($orderId);
+
+        if ($order && $this->orderRepository->isAvailableToBeRemovedByProvider($order)) {
             $order->cancellationProviders()->attach($provider->id);
             return $this->respondSuccess('Order canceled successfully');
         }
+
         return $this->respondNotFound();
     }
 
 
+
+
+//    public function accept($orderId): JsonResponse
+//    {
+//        $provider = request()->user();
+//        $order = $this->orderRepository->find($orderId);
+//
+//        $order = Order::availableToAccept()->where('id', $orderId)->first();
+//        if ($order && $order->isAvailableToAccept()) {
+//        if ($order && $this->orderRepository->isAvailableToBeCanceledByProvider($order)) {
+//
+//                $order->provider_id = $provider->id;
+//            $order->save();
+//            return $this->respondSuccess('Order accepted successfully');
+//        }
+//        return $this->respondNotFound();
+//    }
+
     /**
-     * Display the specified resource.
+     * Mark the order as comig.
      */
-    public function accept($orderId): JsonResponse
+    public function updateOrderToComing($orderId): JsonResponse
     {
         $provider = request()->user();
-        $order = Order::availableToAccept()->where('id', $orderId)->first();
-        if ($order && $order->isAvailableToAccept()) {
-            $order->provider_id = $provider->id;
-            $order->save();
-            return $this->respondSuccess('Order accepted successfully');
+//        $order = Order::where('id', $orderId)
+//            ->where('provider_id', $provider->id)
+//            ->first();
+        $order = $this->orderRepository->find($orderId);
+
+        if ($order && $this->orderRepository->isOrderAvailableToBeComingByProvider($order, $provider)) {
+            $this->orderRepository->updateOrderToComing($order);
+            return $this->respondSuccess('Order updated successfully');
         }
+
         return $this->respondNotFound();
     }
 
+
     /**
-     * Store a newly created resource in storage.
+     * Mark the order as alomst done.
      */
-    public function store(StoreOrderRequest $request): JsonResponse
+    public function updateOrderToAlmostDone($orderId): JsonResponse
     {
-        $user = $request->user();
-        try {
-            DB::beginTransaction();
-
-            $validatedData = $request->validated();
-
-            // Create a new order
-            $order = new Order;
-            $order->start = $validatedData['start'];
-            $order->end = $validatedData['end'];
-            $order->warranty_id = $validatedData['warranty_id'] ?? null;
-            $order->desc = $validatedData['desc'];
-            $order->service_id = $validatedData['service_id'];
-            //$order->provider_id = $validatedData['provider_id'];
-            $order->location_id = $validatedData['location_id'];
-
-            $order->user_id = $user->id;
-            $order->save();
-
-            // Attach sub-services to the order with quantities
-            if ($request->has('sub_services_ids') && $request->has('sub_service_quantities')) {
-                $subServices = $request->input('sub_services_ids');
-                $quantities = $request->input('sub_service_quantities');
-
-                // Ensure the number of sub-services and quantities match
-                if (count($subServices) === count($quantities)) {
-                    $order->subServices()->attach(array_combine($subServices, $quantities));
-                } else {
-                    // Handle mismatch error as needed
-//                    return response()->json(['error' => 'Sub-services and quantities must match.'], 422);
-                }
-            }
-
-
-            // Attach images to the order
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
-                    $media = $order->addMedia($image)->toMediaCollection('images'); // Adjust the collection name as needed
-                }
-            }
-            DB::commit();
-        } catch (\Exception $e) {
-            DB::rollback();
-            throw new Exception($e);
+        $provider = request()->user();
+        $order = $this->orderRepository->find($orderId);
+        if ($order && $this->orderRepository->isOrderAvailableToBeAlmostDoneByProvider($order, $provider)) {
+            $this->orderRepository->updateOrderToAlmostDone($order);
+            return $this->respondSuccess('Order almost done successfully');
         }
 
-        $order->refresh();
-        $order->load('subServices', 'service', 'user', 'location');
-        return $this->respondWithResource(new OrderResource($order), 'order created successfully');
+        return $this->respondNotFound();
     }
+
 
     /**
-     * Display the specified resource.
+     * Mark the order as done.
      */
-    public function show(Order $order)
+    public function updateOrderToDone($orderId): JsonResponse
     {
-        //
-    }
+        $provider = request()->user();
+        $order = $this->orderRepository->find($orderId);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Order $order)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateOrderRequest $request, Order $order)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Order $order)
-    {
-        //
-    }
-
-
-    public function storeLocation(Request $request)
-    {
-        $user = $request->user();
-
-        // Validate incoming request data
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
-            'street' => 'required|string|max:255',
-            'apartment_number' => 'required|string|max:255',
-            'floor_number' => 'required|string|max:255',
-            'latitude' => 'required|string|max:255',
-            'longitude' => 'required|string|max:255',
-            'desc' => 'required|string|max:255',
-            'city_id' => [
-                'required',
-                Rule::exists('cities', 'id')->where(function ($query) use ($request, $user) {
-                    // Additional condition to check city's country_id
-                    $query->where('country_id', $user->country_id);
-                }),
-            ],
-        ]);
-
-        // Create a new location instance
-        $location = new Location();
-
-        $location->name = $validatedData['name'];
-        $location->street = $validatedData['street'];
-        $location->apartment_number = $validatedData['apartment_number'];
-        $location->floor_number = $validatedData['floor_number'];
-        $location->latitude = $validatedData['latitude'];
-        $location->longitude = $validatedData['longitude'];
-        $location->desc = $validatedData['desc'];
-        $location->is_default = (bool)$request->is_default;
-        $location->city_id = $validatedData['city_id'];
-        $location->user_id = $user->id;
-
-        // Save the location
-        $location->save();
-        if ($location->isDefault()) {
-            $user->locations()->default()->where('id', '!=', $location->id)->update(['is_default' => 0]);
+        if ($order && $this->orderRepository->isOrderAvailableToBeDoneByProvider($order, $provider)) {
+            $this->orderRepository->updateOrderToDone($order);
+            return $this->respondSuccess('Order done successfully');
         }
-        return $this->respondWithResource(new LocationResource($location), 'location created');
 
+        return $this->respondNotFound();
     }
+
+
 }

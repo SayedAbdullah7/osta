@@ -24,10 +24,14 @@ class ServiceController extends Controller
     public function sub_service_index(): \Illuminate\Http\JsonResponse
     {
         $service_id = request()->service_id;
-        $cities = SubService::when($service_id, function ($query, $service_id) {
+        $subServices = SubService::when($service_id, function ($query, $service_id) {
             $query->where('service_id', $service_id);
         })->get();
-        return $this->respondWithResource(SubServiceResource::collection($cities), '', 200);
+
+        if(request()->group_by_type){
+            $subServices = collect(['new' => collect(), 'fix' => collect()])->merge($subServices->groupBy('type'));
+        }
+        return $this->respondWithResource(SubServiceResource::collection($subServices), '', 200);
     }
     /**
      * Show the form for creating a new resource.

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\OrderCategoryEnum;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -20,6 +21,7 @@ class ServiceFactory extends Factory
             'name' => $this->faker->word,
             'min_price' => $this->faker->numberBetween(100, 500),
             'max_price' => $this->faker->numberBetween(500, 1000),
+            'category' => $this->faker->randomElement([OrderCategoryEnum::Basic->value, OrderCategoryEnum::SpaceBased->value, OrderCategoryEnum::Other->value, OrderCategoryEnum::Technical->value]),
             'created_at' => now(),
             'updated_at' => now(),
         ];

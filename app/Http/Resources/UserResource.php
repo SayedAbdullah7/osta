@@ -22,7 +22,10 @@ class UserResource extends JsonResource
             'email' => $this->email,
 //            'account' => $this->account,
             'gender' => $this->gender?'male':'female',
+            'date_of_birth' => $this->date_of_birth,
+            'personal_media_url' => $this->getFirstMediaUrl('personal'),
             'token' => $this->token,
+            'country_id' => $this->country_id,
             'country' => new CountryResource($this->whenLoaded('country')), // Conditionally include 'country' if it's loaded
         ];
     }

@@ -21,7 +21,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::middleware([])->group(function () {
 
     Route::prefix('user')->group(function () {
-        Route::post('check-phone', [\App\Http\Controllers\Api\UserController::class, 'checkPhone']);
+        Route::post('check-phone', [\App\Http\Controllers\Api\UserController::class, 'checkPhoneRegistered']);
 
         // Register a new user with phone number
         Route::post('register', [\App\Http\Controllers\Api\UserController::class, 'register']);
@@ -39,16 +39,23 @@ Route::middleware([])->group(function () {
 
             //order
             Route::post('order', [\App\Http\Controllers\Api\User\OrderController::class, 'store']);
-            Route::get('order', [\App\Http\Controllers\Api\User\OrderController::class, 'user_orders_index']); // for user
+            Route::get('order', [\App\Http\Controllers\Api\User\OrderController::class, 'getUserOrders']); // for user
+//            Route::get('order', [\App\Http\Controllers\Api\User\OrderController::class, 'user_orders_index']); // for user
 
 
             Route::get('order/{order}/offer', [\App\Http\Controllers\Api\User\OfferController::class, 'index']); // my orders for providers
+
+            Route::get('offer/{orderId}', [\App\Http\Controllers\Api\User\OfferController::class, 'index']);
+            Route::post('offer/{offerId}/accept', [\App\Http\Controllers\Api\User\OfferController::class, 'acceptOffer']);
+            Route::post('offer/{offerId}/reject', [\App\Http\Controllers\Api\User\OfferController::class, 'rejectOffer']);
         });
 
     });
 
 
     Route::prefix('provider')->group(function () {
+        Route::post('check-phone', [\App\Http\Controllers\Api\ProviderController::class, 'checkPhoneRegistered']);
+
         // Register a new provider with phone number
         Route::post('register', [\App\Http\Controllers\Api\ProviderController::class, 'registerProvider']);
 
@@ -64,19 +71,31 @@ Route::middleware([])->group(function () {
 
             Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
             //order
-            Route::get('order', [\App\Http\Controllers\Api\Provider\OrderController::class, 'pending_index']); // for providers
+            Route::get('order', [\App\Http\Controllers\Api\Provider\OrderController::class, 'getPendingOrders']); // for providers
 
-            Route::get('my-orders', [\App\Http\Controllers\Api\Provider\OrderController::class, 'provider_orders_index']); // my orders for providers
+            Route::get('my-orders', [\App\Http\Controllers\Api\Provider\OrderController::class, 'getProviderOrders']); // my orders for providers
 
-            Route::patch('order/{order}/accept', [\App\Http\Controllers\Api\Provider\OrderController::class, 'accept']); // my orders for providers
+//            Route::patch('order/{order}/accept', [\App\Http\Controllers\Api\Provider\OrderController::class, 'accept']); // my orders for providers
 
-            Route::patch('order/{order}/cancel', [\App\Http\Controllers\Api\Provider\OrderController::class, 'cancel']); // my orders for providers
+            Route::patch('order/{orderId}/remove', [\App\Http\Controllers\Api\Provider\OrderController::class, 'remove']); // my orders for providers
 
             Route::get('my-offers', [\App\Http\Controllers\Api\Provider\OfferController::class, 'index']); // my orders for providers
 
-        });
-    });
+            Route::post('send-offer', [\App\Http\Controllers\Api\Provider\OfferController::class, 'sendOffer']); // send offer for order
 
+        });
+
+
+
+        Route::get('/loin', function () {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated or Token Expired, Please Login',
+                'result' => null,
+                'error_code' => 1
+            ], 401);
+        })->name('login');
+    });
     Route::get('country', [\App\Http\Controllers\Api\CountryController::class, 'country_index']);
 
     Route::get('city', [\App\Http\Controllers\Api\CountryController::class, 'city_index']);
@@ -85,13 +104,15 @@ Route::middleware([])->group(function () {
 
     Route::get('sub_service', [\App\Http\Controllers\Api\ServiceController::class, 'sub_service_index']);
 
-    Route::get( '/loin', function () {
-        return response()->json([
-            'success' => false,
-            'message' => 'Unauthenticated or Token Expired, Please Login',
-            'result' => null,
-            'error_code' => 1
-        ], 401);
-    })->name('login');
-});
+    //chat
+    Route::prefix('')->middleware(['auth:sanctum'])->group(function () {
 
+        // write send-message route here
+        Route::post('message', [\App\Http\Controllers\Api\MessageController::class, 'sendMessage'])->name('send.message');
+        Route::get('message', [\App\Http\Controllers\Api\MessageController::class, 'index'])->name('get.message');
+
+    });
+
+
+
+});

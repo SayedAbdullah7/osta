@@ -9,10 +9,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\HasMedia;
+
 class Order extends Model implements HasMedia
 {
     use HasFactory;
     use InteractsWithMedia;
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'status' => OrderStatusEnum::class,
+    ];
 
     public function subServices()
     {
@@ -27,6 +37,11 @@ class Order extends Model implements HasMedia
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function provider()
+    {
+        return $this->belongsTo(Provider::class);
     }
 
     public function location()
@@ -48,6 +63,7 @@ class Order extends Model implements HasMedia
     {
         $query->where('status', OrderStatusEnum::PENDING);
     }
+
     public function scopeAvailableToAccept($query): void
     {
         $query->where('status', OrderStatusEnum::PENDING)->where('provider_id', null);
@@ -69,6 +85,7 @@ class Order extends Model implements HasMedia
     {
         return $this->status === OrderStatusEnum::PENDING;
     }
+
     public function isAvailableToCancel(): bool
     {
         return (!$this->provider_id && $this->status === OrderStatusEnum::PENDING);
@@ -78,4 +95,22 @@ class Order extends Model implements HasMedia
     {
         return $this->status === OrderStatusEnum::PENDING;
     }
+
+    public function maxAllowedOfferPrice(): float|int
+    {
+        if ($this->subServices->count() > 0) {
+            $max = 0;
+            foreach ($this->subServices as $subService) {
+                $max += ($subService->pivot->quantity * $subService->max_price);
+            }
+            return $max;
+        }
+        return INF;
+    }
+
+    public function conversation(): \Illuminate\Database\Eloquent\Relations\MorphOne
+    {
+        return $this->morphOne(Conversation::class, 'model');
+    }
+
 }

@@ -14,8 +14,9 @@ return new class extends Migration
         Schema::create('sub_services', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->mediumInteger('min_price')->unsigned()->nullable();
+            $table->mediumInteger('min_price')->unsigned()->nullable(); // not used
             $table->mediumInteger('max_price')->unsigned()->nullable();
+            $table->string('type');
             $table->foreignIdFor(\App\Models\Service::class)->constrained()->restrictOnDelete();
             $table->timestamps();
         });

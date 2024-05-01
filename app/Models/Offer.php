@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\OfferStatusEnum;
+use App\Enums\OrderCategoryEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -23,6 +23,6 @@ class Offer extends Model
 
     public function scopePending($query): void
     {
-        $query->where('status', OfferStatusEnum::PENDING);
+        $query->where('status', OrderCategoryEnum::PENDING);
     }
 }

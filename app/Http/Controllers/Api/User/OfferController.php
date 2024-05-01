@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Api\User;
 
-use App\Enums\OfferStatusEnum;
+use App\Enums\OrderCategoryEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OfferResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
@@ -24,7 +24,8 @@ class OfferController extends Controller
 
     public function index($orderId)
     {
-        $user = auth()->user();
+//        $user = auth()->user();
+        $user = request()->user();
         return $this->userOfferService->getOffersForOrder($orderId,$user);
     }
 
@@ -36,7 +37,8 @@ class OfferController extends Controller
 
     public function rejectOffer($offerId)
     {
-        return $this->userOfferService->rejectOffer($offerId);
+        $user = auth()->user();
+        return $this->userOfferService->rejectOffer($offerId,$user);
     }
 
 //

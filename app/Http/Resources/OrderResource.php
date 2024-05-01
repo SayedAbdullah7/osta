@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -23,6 +24,8 @@ class OrderResource extends JsonResource
             'status' => $this->status,
             'desc' => $this->desc,
             'price' => $this->price,
+            'unknown_problem'=>$this->unknown_problem,
+            'max_allowed_price' => $this->max_allowed_price,
             'user' => new UserResource($this->whenLoaded('user')),
             'service' => new ServiceResource($this->whenLoaded('service')),
             'provider' => new ProviderResource($this->whenLoaded('provider')),
@@ -31,6 +34,8 @@ class OrderResource extends JsonResource
             'images' => $this->getMedia('images')->map(function (Media $media) {
                 return $media->getFullUrl();
             }),
+            'total_pending_offers' => $this->whenCounted('offers_count'),
+//            ' => $this->whenCounted('orders_count'),
 //            'images2' => $this->getMediaUrls('images'),
         ];
     }

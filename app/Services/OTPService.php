@@ -5,7 +5,8 @@ namespace App\Services;
 use App\Models\Otp;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
-
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\UnauthorizedException;
 class OTPService
 {
     /**
@@ -14,15 +15,22 @@ class OTPService
      * @param mixed $user The user for whom the OTP is generated (can be user or provider).
      * @param int $expirationMinutes The expiration time for the OTP in minutes.
      * @return string|null The generated OTP, or null if a new OTP cannot be generated.
+     * @throws ValidationException
      */
     public function generateOTP($user, int $expirationMinutes = 5): ?string
     {
         if ($this->isLastOTPGeneratedWithinMinutes($user, 2) || $this->isOTPCountExceededLastHour($user, 3)) {
-            return null; // Return null to indicate that a new OTP cannot be generated yet
+//            return null; // Return null to indicate that a new OTP cannot be generated yet
+            // reutne error user can't generate otp
+//            throw ValidationException::withMessages([
+//                'otp' => ['Cannot generate OTP at this time. Please try again later.'],
+//            ]);
+            throw new UnauthorizedException('Cannot generate OTP at this time. Please try again later.');
+
         }
 
 //        $otp = Str::random(6);
-        $otp = '123456';
+        $otp = '1234';
         $expiresAt = Carbon::now()->addMinutes($expirationMinutes);
 
         return Otp::create([

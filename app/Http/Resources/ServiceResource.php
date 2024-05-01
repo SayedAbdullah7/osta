@@ -18,8 +18,9 @@ class ServiceResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'min_price' => $this->min_price,
-            'max_price' => $this->max_price,
+//            'min_price' => $this->min_price,
+//            'max_price' => $this->max_price,
+            'category' => $this->category,
         ];
 
     }

@@ -13,9 +13,14 @@ return new class extends Migration
     {
         Schema::create('offers', function (Blueprint $table) {
             $table->id();
-            $table->mediumInteger('price')->unsigned();
-            $table->enum('status', array_column(\App\Enums\OfferStatusEnum::cases(), 'value'))->default(\App\Enums\OfferStatusEnum::PENDING);
+            $table->dateTime('arrival_from');
+            $table->dateTime('arrival_to');
+            $table->string('arrival_time')->nullable();
+            $table->mediumInteger('price')->unsigned()->nullable();
+            $table->enum('status', \App\Enums\OfferStatusEnum::values())->default(\App\Enums\OfferStatusEnum::DefaultValue());
             $table->boolean('is_second')->default(false);
+            $table->string('latitude',15)->nullable();
+            $table->string('longitude',15)->nullable();
             $table->foreignIdFor(\App\Models\Provider::class)->constrained()->restrictOnDelete()->cascadeOnUpdate();
             $table->foreignIdFor(\App\Models\Order::class)->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->timestamps();

@@ -5,6 +5,7 @@ namespace App\Exceptions;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Validation\UnauthorizedException;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 use Illuminate\Auth\AuthenticationException;
@@ -46,6 +47,16 @@ class Handler extends ExceptionHandler
                     [
                         'success' => false,
                         'message' => 'Unauthenticated or Token Expired, Please Login'
+                    ],
+                    401
+                );
+            }
+
+            if ($e instanceof UnauthorizedException) {
+                return $this->apiResponse(
+                    [
+                        'success' => false,
+                        'message' => $e->getMessage(),
                     ],
                     401
                 );

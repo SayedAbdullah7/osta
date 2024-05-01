@@ -67,7 +67,9 @@ class LocationController extends Controller
         if ($location->isDefault()){
             $user->locations()->default()->where('id','!=',$location->id)->update(['is_default'=>0]);
         }
-        return $this->respondWithResource(new LocationResource($location),'location created successfully');
+        $locations = $user->locations()->with('city')->get();
+        return $this->respondWithResource(LocationResource::collection($locations),'location created successfully');
+//        return $this->respondWithResource(new LocationResource($location),'location created successfully');
 
     }
     /**

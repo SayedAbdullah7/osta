@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name',80);
             $table->string('iban',35);
-            $table->foreignIdFor(\App\Models\Provider::class)->constrained()->restrictOnDelete();
+            $table->foreignIdFor(\App\Models\Provider::class)->constrained()->cascadeOnDelete();
             $table->timestamps();
         });
     }

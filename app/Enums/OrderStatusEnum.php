@@ -2,15 +2,16 @@
 
 namespace App\Enums;
 
-enum OrderStatusEnum
+enum OrderStatusEnum: string
 {
+    use EnumToArray;
 
-    public const PENDING = 'pending';
-    public const ACCEPTED = 'accepted';
-    public const COMING = 'coming';
-    public const ALMOST_DONE = 'almost done';
-    public const DONE = 'done';
-    public const REJECTED = 'rejected';
+    case PENDING = 'pending';
+    case ACCEPTED = 'accepted';
+    case COMING = 'coming';
+    case ALMOST_DONE = 'almost done';
+    case DONE = 'done';
+    case REJECTED = 'rejected';
 
 
 }

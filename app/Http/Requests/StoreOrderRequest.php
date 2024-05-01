@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\OrderCategoryEnum;
 use App\Enums\OrderWarrantyEnum;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+
 class StoreOrderRequest extends FormRequest
 {
     /**
@@ -26,10 +28,13 @@ class StoreOrderRequest extends FormRequest
         $user = $this->user();
 
         return [
-            'start' => 'required|date_format:Y-m-d H:i',
-            'end' => 'nullable|date_format:Y-m-d H:i',
-            'warranty_id' => [Rule::enum(OrderWarrantyEnum::class)],
-            'desc' => 'required|string|max:255',
+            'unknown_problem' => 'boolean',
+            'category' => ['required', Rule::enum(OrderCategoryEnum::class)],
+            'space' => 'required_if:category,' . OrderCategoryEnum::SpaceBased->value . '|max:15',
+//            'start' => 'required|date_format:Y-m-d H:i',
+//            'end' => 'nullable|date_format:Y-m-d H:i',
+            'warranty_id' => ['nullable', Rule::enum(OrderWarrantyEnum::class)],
+            'desc' => 'required_if:unknown_problem,true|max:255',
             'service_id' => 'required|exists:services,id',
             'location_id' => [
                 'required',
@@ -49,8 +54,15 @@ class StoreOrderRequest extends FormRequest
                     }
                 },
             ],
-            'sub_services.*.sub_services_ids' => 'required|exists:sub_services,id',
-            'sub_services.*.sub_service_quantities' => 'required|integer|min:1',
+            'sub_services_ids' => 'array',
+            'sub_services_ids.*' => 'exists:sub_services,id',
+            'sub_service_quantities' => 'array',
+            'sub_service_quantities.*' => 'required|integer|min:1',
+
+//            'sub_services_ids' => 'required|array|exists:sub_services,id',
+//            'sub_service_quantities.*' => 'required|integer|min:1',
+//            'sub_services.*.sub_services_ids' => 'required|exists:sub_services,id',
+//            'sub_services.*.sub_service_quantities' => 'required|integer|min:1',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
         ];
 

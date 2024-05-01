@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -13,12 +14,17 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->dateTime('start');
+            $table->dateTime('start')->nullable();
             $table->dateTime('end')->nullable();
-            $table->enum('warranty_id', [\App\Enums\OrderWarrantyEnum::ONE, \App\Enums\OrderWarrantyEnum::TWO, \App\Enums\OrderWarrantyEnum::THREE])->nullable();
-            $table->enum('status', [\App\Enums\OrderStatusEnum::PENDING, \App\Enums\OrderStatusEnum::ACCEPTED, \App\Enums\OrderStatusEnum::COMING, \App\Enums\OrderStatusEnum::ALMOST_DONE, \App\Enums\OrderStatusEnum::DONE])->default(\App\Enums\OrderStatusEnum::PENDING);
-            $table->text('desc');
+            $table->string('space',15)->nullable();
+            $table->enum('warranty_id', \App\Enums\OrderWarrantyEnum::values())->nullable();
+            $table->enum('status',  \App\Enums\OrderStatusEnum::values())->default(\App\Enums\OrderStatusEnum::PENDING->value);
+//            $table->enum('status', [\App\Enums\OrderStatusEnum::PENDING, \App\Enums\OrderStatusEnum::ACCEPTED, \App\Enums\OrderStatusEnum::COMING, \App\Enums\OrderStatusEnum::ALMOST_DONE, \App\Enums\OrderStatusEnum::DONE])->default(\App\Enums\OrderStatusEnum::PENDING);
+            $table->enum('category', \App\Enums\OrderCategoryEnum::values());
+            $table->string('desc')->nullable();// change to VARCHAR
             $table->mediumInteger('price')->unsigned()->nullable();
+            $table->mediumInteger('max_allowed_price')->unsigned()->nullable();
+            $table->boolean('unknown_problem')->default(false);
             $table->foreignIdFor(\App\Models\User::class)->constrained()->restrictOnDelete();
             $table->foreignIdFor(\App\Models\Service::class)->constrained()->restrictOnDelete();
             $table->foreignIdFor(\App\Models\Provider::class)->nullable()->constrained()->restrictOnDelete();
