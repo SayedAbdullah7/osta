@@ -34,7 +34,8 @@ class StoreOrderRequest extends FormRequest
 //            'start' => 'required|date_format:Y-m-d H:i',
 //            'end' => 'nullable|date_format:Y-m-d H:i',
             'warranty_id' => ['nullable', Rule::enum(OrderWarrantyEnum::class)],
-            'desc' => 'required_if:unknown_problem,true|max:255',
+            'desc' => 'max:255',
+//            'desc' => 'required_if:unknown_problem,true|max:255',
             'service_id' => 'required|exists:services,id',
             'location_id' => [
                 'required',

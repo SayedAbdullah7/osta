@@ -7,6 +7,7 @@ use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\UnauthorizedException;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 use Illuminate\Auth\AuthenticationException;
 
@@ -69,6 +70,15 @@ class Handler extends ExceptionHandler
                         'message' => 'Too Many Requests,Please Slow Down'
                     ],
                     429
+                );
+            }
+            if ($e instanceof NotFoundHttpException) {
+                return $this->apiResponse(
+                    [
+                        'success' => false,
+                        'message' => $e->getMessage(),
+                    ],
+                    404
                 );
             }
 

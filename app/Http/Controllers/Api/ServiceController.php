@@ -17,11 +17,11 @@ class ServiceController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function service_index(): \Illuminate\Http\JsonResponse
+    public function service_index()
     {
         return $this->respondWithResource(ServiceResource::collection(Service::all()),'');
     }
-    public function sub_service_index(): \Illuminate\Http\JsonResponse
+    public function sub_service_index()
     {
         $service_id = request()->service_id;
         $subServices = SubService::when($service_id, function ($query, $service_id) {
@@ -30,7 +30,9 @@ class ServiceController extends Controller
 
         if(request()->group_by_type){
             $subServices = collect(['new' => collect(), 'fix' => collect()])->merge($subServices->groupBy('type'));
+            return $this->respondSuccess($subServices, '', 200);
         }
+//        return $subServices;
         return $this->respondWithResource(SubServiceResource::collection($subServices), '', 200);
     }
     /**

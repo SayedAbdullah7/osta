@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
             CitySeeder::class,
             ServiceSeeder::class,
             SubServiceSeeder::class,
+            FaqCategorySeeder::class,
+            FaqSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

@@ -18,6 +18,17 @@ class ProviderOfferService
      */
     public const MAX_OFFERS_PER_ORDER = 7;
 
+    /**
+     * The maximum number of offers that a provider can send.
+     */
+
+    public const MAX_OFFERS_PER_PROVIDER = 12;
+
+    /**
+     * The maximum time in minutes for an offer to be valid.
+     */
+    public const MaxOfferTime = 30;
+
 
     /**
      * Get all offers for a specific provider.
@@ -27,7 +38,7 @@ class ProviderOfferService
      */
     public function getOffersForProvider(int $providerId): JsonResponse
     {
-        $offers = Offer::where('provider_id', $providerId)->get();
+        $offers = Offer::with(['order','order.user','order.service','order.subServices'])->where('provider_id', $providerId)->get();
 
 
         // You may transform the offers if needed before returning them
@@ -42,29 +53,33 @@ class ProviderOfferService
      * @param array $data The data of the offer, including 'order_id', 'provider_id', and 'price'.
      * @return JsonResponse A JSON response indicating the result of the operation.
      */
-    public function sendOffer(array $data): JsonResponse
+    public function sendOfferFromProvider(array $data): JsonResponse
     {
         $orderId = $data['order_id'];
         $providerId = $data['provider_id'];
         $price = $data['price'];
 
-
         $order = Order::find($orderId);
 
         // Check if the order exists and is available to send an offer
-        if (!$order || !$this->isAvailableToSendOffer($order)) {
+        if (!$order || !$this->isOrderAvailableForOffer($order)) {
             return $this->respondNotFound('Order not found or not available for sending an offer');
         }
 
         // Check if the provider can send an offer for the given order
-        if (!$this->canProviderSendOffer($providerId, $orderId)) {
+        if (!$this->canProviderOfferForOrder($providerId, $orderId)) {
             return $this->respondError('Cannot send more than one offer for the same order');
         }
 
+        if ($this->canProviderSendMoreOffers($providerId)) {
+            return $this->respondError('Maximum number of offers for the provider reached');
+        }
+
         // Check if the order can have more offers
-        if (!$this->canOrderHaveMoreOffers($order)) {
+        if (!$this->canOrderAcceptMoreOffers($order)) {
             return $this->respondError('Maximum number of offers for the order reached');
         }
+
 
         $oldOffer = Offer::where('provider_id', $providerId)
             ->where('order_id', $orderId)->where('status', OrderStatusEnum::REJECTED)->where('is_second', false)
@@ -74,6 +89,8 @@ class ProviderOfferService
         }else{
             $time = 'now';
         }
+
+
 
         if ($oldOffer) {
             if ($oldOffer->price <= $price) {
@@ -86,9 +103,17 @@ class ProviderOfferService
             $oldOffer->arrival_time = $time;
             $oldOffer->save();
 
+
         } else {
 
+            // calculate the distance between the provider and the order location
             // Create the offer
+            $orderLatitude = $order->location->latitude;
+            $orderLongitude = $order->location->longitude;
+            $providerLatitude = $data['latitude'];
+            $providerLongitude = $data['longitude'];
+            $distance = $this->calculateDistanceBetweenProviderAndOrder($providerLatitude, $providerLongitude, $orderLatitude, $orderLongitude);
+
             Offer::create([
                 'order_id' => $orderId,
                 'provider_id' => $providerId,
@@ -97,13 +122,26 @@ class ProviderOfferService
                 'status' => OrderStatusEnum::PENDING,
                 'longitude' => $data['longitude'],
                 'latitude' => $data['latitude'],
+                'distance' => $distance,
             ]);
         }
 
         return $this->respondSuccess('Offer sent successfully');
     }
+// getDistance in km
+    public function calculateDistanceBetweenProviderAndOrder($providerLatitude, $providerLongitude, $orderLatitude, $orderLongitude): float
+    {
+        $theta = $providerLongitude - $orderLongitude;
+        $dist = sin(deg2rad($providerLatitude)) * sin(deg2rad($orderLatitude)) +  cos(deg2rad($providerLatitude)) * cos(deg2rad($orderLatitude)) * cos(deg2rad($theta));
+        $dist = acos($dist);
+        $dist = rad2deg($dist);
+        $kilometers = $dist * 60 * 1.1515 * 1.609344;
+        return $kilometers;
+    }
 
-    private function isAvailableToSendOffer(Order $order): bool
+
+
+    private function isOrderAvailableForOffer(Order $order): bool
     {
         return $order->status === OrderStatusEnum::PENDING;
     }
@@ -114,9 +152,17 @@ class ProviderOfferService
      * @param int $orderId The ID of the order.
      * @return bool True if the provider can send an offer, false otherwise.
      */
-    private function canProviderSendOffer(int $providerId, int $orderId): bool
+    private function canProviderOfferForOrder(int $providerId, int $orderId): bool
     {
         return $this->getProviderOfferCount($providerId, $orderId) === 0;
+    }
+
+
+    private function canProviderSendMoreOffers(int $providerId): bool
+    {
+        return Offer::where('provider_id', $providerId)
+                ->where('status', OrderStatusEnum::PENDING)
+                ->count() < self::MAX_OFFERS_PER_PROVIDER;
     }
 
 
@@ -128,7 +174,7 @@ class ProviderOfferService
      * @param Order $order The order to check.
      * @return bool True if the order can have more offers, false otherwise.
      */
-    private function canOrderHaveMoreOffers(Order $order): bool
+    private function canOrderAcceptMoreOffers(Order $order): bool
     {
         return $order->offers()->where('status', OrderStatusEnum::PENDING)->count() < self::MAX_OFFERS_PER_ORDER;
     }
@@ -153,6 +199,14 @@ class ProviderOfferService
             ->count();
     }
 
-//    private function autoRemoveOldO
+    private function autoRemoveOldOffers(int $orderId = null, int $providerId = null): void
+    {
+        Offer::when($orderId, function ($query) use ($orderId) {
+            $query->where('order_id', $orderId);
+        })->when($providerId, function ($query) use ($providerId) {
+            $query->where('provider_id', $providerId);
+        })->where('status', OrderStatusEnum::PENDING)
+            ->where('created_at', '<', now()->subMinutes(self::MaxOfferTime))->delete();
+    }
 
 }

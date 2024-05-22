@@ -17,8 +17,8 @@ class StoreMessageRequest extends FormRequest
             'content' => 'required_without:media|string',
             'conversation_id' => 'required_without:order_id|exists:conversations,id',
             'order_id' => 'required_without:conversation_id|exists:orders,id',
-            'media' => 'required'
-//            'media' => 'sometimes|file|mimes:jpeg,jpg,bmp,png,mp4,mov,ogg,qt|max:50000', // max 5MB
+//            'media' => 'required'
+            'media.*' => 'file|mimes:jpeg,jpg,png,mp4,mov,ogg|max:50000', // max 50MB
         ];
     }
 }

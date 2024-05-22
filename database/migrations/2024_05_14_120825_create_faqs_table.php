@@ -11,13 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('conversations', function (Blueprint $table) {
+        Schema::create('faqs', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('type');
-//            $table->enum('status', ['active', 'inactive'])->default('active');
-            $table->boolean('is_active')->default(true);
-            $table->morphs('model');
+            $table->string('question');
+            $table->text('answer');
+//            $table->foreignIdFor(\App\Models\FaqCategory::class)->constrained()->cascadeOnDelete()->cascadeOnUpdate();
+            $table->foreignId('category_id')->constrained('faq_categories')->cascadeOnDelete()->cascadeOnUpdate();
             $table->timestamps();
         });
     }
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('conversions');
+        Schema::dropIfExists('faqs');
     }
 };

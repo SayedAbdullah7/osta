@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\WalletController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Traits\Helpers\ApiResponseTrait;
@@ -83,8 +84,9 @@ Route::middleware([])->group(function () {
 
             Route::post('send-offer', [\App\Http\Controllers\Api\Provider\OfferController::class, 'sendOffer']); // send offer for order
 
+            Route::post('order/{orderId}/make-done/', [\App\Http\Controllers\Api\Provider\OrderController::class, 'updateOrderToDone']); // send offer for order
+//            Route::post('order/{orderId}/make-order-done/', [\App\Http\Controllers\Api\Provider\OrderController::class, 'updateOrderToDone']); // send offer for order
         });
-
 
 
         Route::get('/loin', function () {
@@ -106,13 +108,39 @@ Route::middleware([])->group(function () {
 
     //chat
     Route::prefix('')->middleware(['auth:sanctum'])->group(function () {
+//        Route::get('/wallet/balance', [WalletController::class, 'balance']);
 
         // write send-message route here
         Route::post('message', [\App\Http\Controllers\Api\MessageController::class, 'sendMessage'])->name('send.message');
         Route::get('message', [\App\Http\Controllers\Api\MessageController::class, 'index'])->name('get.message');
 
+        Route::get('faq', [\App\Http\Controllers\Api\FaqController::class, 'index']);
+        Route::get('faq-category', [\App\Http\Controllers\Api\FaqController::class, 'categories']);
+
+
+        Route::get('/wallet/', [WalletController::class, 'show']);
+        Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
+
+
+        Route::get('/ticket', [\App\Http\Controllers\Api\TicketController::class, 'index']);
+        Route::post('/ticket', [\App\Http\Controllers\Api\TicketController::class, 'store']);
+
+        Route::get('/ticket/{ticket}', [\App\Http\Controllers\Api\TicketController::class, 'show']);
+        Route::post('/ticket/{ticket}/message', [\App\Http\Controllers\Api\TicketController::class, 'storeMessage']);
+
+
+
+
     });
 
+
+    Route::middleware('auth:sanctum')->group(function () {
+
+//        Route::post('/wallet/deposit', [WalletController::class, 'deposit']);
+//        Route::post('/wallet/withdraw', [WalletController::class, 'withdraw']);
+//        Route::post('/wallet/withdraw', [WalletController::class, 'withdraw']);
+//        Route::post('/wallet/transfer', [WalletController::class, 'transfer']);
+    });
 
 
 });

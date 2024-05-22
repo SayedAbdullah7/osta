@@ -38,7 +38,8 @@ class OfferController extends Controller
         $data = $request->validated();
         // $data = $request->all();
         $data['provider_id'] = auth('provider')->id();
-        return $this->providerOfferService->sendOffer($data);
+//        $distance =  $this->providerOfferService->getDistance($data);
+        return $this->providerOfferService->sendOfferFromProvider(($data));
     }
 
 //    /**

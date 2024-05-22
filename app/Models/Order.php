@@ -113,4 +113,9 @@ class Order extends Model implements HasMedia
         return $this->morphOne(Conversation::class, 'model');
     }
 
+    public function isPreview(): bool
+    {
+        return $this->price == 0 || $this->price == null;
+    }
+
 }

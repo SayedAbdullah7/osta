@@ -24,7 +24,7 @@ class OfferResource extends JsonResource
 //            'is_second' => $this->is_second,
             'provider_id' => $this->provider_id,
             'order_id' => $this->order_id,
-            'distance' => round($this->distance,2),
+            'distance' => (string)round($this->distance,2),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'provider' => ProviderResource::make($this->whenLoaded('provider')),

@@ -27,38 +27,38 @@ class UserOfferService
     public function getOffersForOrder(int $orderId, User $user): \Illuminate\Http\JsonResponse
     {
 //        $offers = $user->orders()->pending()->where('offers.order_id', $orderId)->where('offers.status', OrderStatusEnum::PENDING)->get();
-//        $offer = Offer::whereHas('order', function ($query) use ($user) {
+//        $offers = Offer::whereHas('order', function ($query) use ($user) {
 //            $query->where('user_id', $user->id);
 //        })->where('status', OrderStatusEnum::PENDING)->first();
         $order = Order::find($orderId);
         $latitude = $order->location->latitude;
         $longitude = $order->location->longitude;
-        $offers = Offer::selectRaw("
-        *,
-        ( 6371 * acos( cos( radians(?) ) *
-        cos( radians( latitude ) )
-        * cos( radians( longitude ) - radians(?)
-        ) + sin( radians(?) ) *
-        sin( radians( latitude ) ) )
-        ) AS distance", [$latitude, $longitude, $latitude])
-            ->with(['provider' => function ($query) {
-                $query->withCount(['orders' => function ($query2) {
-                    $query2->where('status', \App\Enums\OrderStatusEnum::DONE);
-                }]);
-            }])
-            ->whereHas('order', function ($query) use ($user, $orderId) {
-                $query->where('user_id', $user->id)->where('id', $orderId);
-            })
-            ->where('status', OfferStatusEnum::PENDING)
-            ->get();
+//        $offers = Offer::selectRaw("
+//        *,
+//        ( 6371 * acos( cos( radians(?) ) *
+//        cos( radians( latitude ) )
+//        * cos( radians( longitude ) - radians(?)
+//        ) + sin( radians(?) ) *
+//        sin( radians( latitude ) ) )
+//        ) AS distance", [$latitude, $longitude, $latitude])
+//            ->with(['provider' => function ($query) {
+//                $query->withCount(['orders' => function ($query2) {
+//                    $query2->where('status', \App\Enums\OrderStatusEnum::DONE);
+//                }]);
+//            }])
+//            ->whereHas('order', function ($query) use ($user, $orderId) {
+//                $query->where('user_id', $user->id)->where('id', $orderId);
+//            })
+//            ->where('status', OfferStatusEnum::PENDING)
+//            ->get();
 
-//        $offers = Offer::with(['provider'=>function($query){
-//            $query->withCount(['orders'=>function($query2){
-//                $query2->where('status',\App\Enums\OrderStatusEnum::DONE);
-//            }]);
-//        }])->whereHas('order', function ($query) use ($user, $orderId) {
-//            $query->where('user_id', $user->id)->where('id', $orderId);
-//        })->where('status', OfferStatusEnum::PENDING)->get();
+        $offers = Offer::with(['provider'=>function($query){
+            $query->withCount(['orders'=>function($query2){
+                $query2->where('status',\App\Enums\OrderStatusEnum::DONE);
+            }]);
+        }])->whereHas('order', function ($query) use ($user, $orderId) {
+            $query->where('user_id', $user->id)->where('id', $orderId);
+        })->where('status', OfferStatusEnum::PENDING)->get();
 
 
 //        )->whereHas('order', function ($query) use ($user, $orderId) {
@@ -141,7 +141,7 @@ class UserOfferService
         $conversation = $order->conversation;
         if (!$conversation) {
             $conversation = new Conversation();
-            $conversation->model_id = $order;
+            $conversation->model_id = $order->id;
             $conversation->model_type = get_class($order);
             $conversation->type = 'order';
             $conversation->save();

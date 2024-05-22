@@ -11,13 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('conversations', function (Blueprint $table) {
+        Schema::create('faq_categories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('type');
-//            $table->enum('status', ['active', 'inactive'])->default('active');
-            $table->boolean('is_active')->default(true);
-            $table->morphs('model');
             $table->timestamps();
         });
     }
@@ -27,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('conversions');
+        Schema::dropIfExists('faq_categories');
     }
 };

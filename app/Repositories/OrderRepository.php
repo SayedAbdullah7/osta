@@ -140,7 +140,9 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function isOrderAvailableToBeDoneByProvider(Order $order,Provider $provider): bool
     {
-        return $order->status === OrderStatusEnum::ALMOST_DONE && $this->isOrderBelongToProvider($order,$provider);
+
+        return $this->isOrderBelongToProvider($order,$provider);
+//        return $order->status === OrderStatusEnum::ALMOST_DONE && $this->isOrderBelongToProvider($order,$provider);
     }
 
     public function updateOrderToComing($order): Order
@@ -153,6 +155,13 @@ class OrderRepository implements OrderRepositoryInterface
     {
         $order->status = OrderStatusEnum::ALMOST_DONE;
         return $order->save();
+    }
+
+    public function updateOrderToDone($order): Order
+    {
+        $order->status = OrderStatusEnum::DONE;
+        $order->save();
+        return $order;
     }
 
     public function isOrderBelongToProvider(Order $order,Provider $provider): bool
