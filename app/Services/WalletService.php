@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Admin;
+use App\Models\Invoice;
 use App\Models\Order;
 use App\Repositories\OrderRepository;
 use Bavix\Wallet\Internal\Exceptions\ExceptionInterface;
@@ -111,6 +112,38 @@ class WalletService
         $deductedAmount = $totalAmount - $providerEarning;
 
         return [$totalAmount, $adminEarning, $providerEarning, $deductedAmount];
+    }
+    public function storeInvoice($order, $total, $adminEarning, $providerEarning, $discount, $tax, $paymentMethod)
+    {
+//        $table->string('invoice_number')->unique()->nullable();
+//        $table->string('status')->default('pending');
+//        $table->decimal('cost', 10, 2)->nullable();
+//        $table->decimal('discount', 10, 2)->nullable();
+//        $table->decimal('tax', 10, 2)->nullable();
+//
+//        $table->decimal('sub_total', 10, 2);
+//        $table->decimal('total', 10, 2);
+//
+//        $table->decimal('provider_earning', 10, 2)->nullable();
+//        $table->decimal('admin_earning', 10, 2)->nullable();
+//
+//        $table->enum('payment_method',['cash','wallet','card']);
+//        $table->string('payment_status')->default('pending');
+//        $table->string('payment_id')->nullable();
+//        $table->string('payment_url')->nullable();
+        $invoice = new Invoice;
+        $invoice->order_id = $order->id;
+        $invoice->user_id = $order->user_id;
+        $invoice->provider_id = $order->provider_id;
+        $invoice->total_amount = $total;
+        $invoice->admin_earning = $adminEarning;
+        $invoice->provider_earning = $providerEarning;
+        $invoice->discount = $discount;
+        $invoice->tax = $tax;
+        $invoice->payment_method = $paymentMethod;
+        $invoice->save();
+
+        return $invoice;
     }
 
     public function checkBalance($wallet, $amount): bool

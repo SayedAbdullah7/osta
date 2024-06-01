@@ -8,6 +8,7 @@ use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
 use App\Repositories\MessageRepository;
 use Exception;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -41,25 +42,59 @@ class MessageService
         return $this->messageRepository->getSimplePaginateMessagesByConversationId($perPage, $page, $conversationId);//    return $this->messageRepository->getMessages($request);
     }
 
+    public function createConversationForModel(Model $model,$startMessage = null): Conversation|null
+    {
+        $conversation = $model->conversation;
+        if (!$conversation) {
+            $conversation = $this->messageRepository->createConversationForModel($model);
+
+//            $conversation->participants()->attach($order->user_id);
+
+            if ($startMessage) {
+                $this->messageRepository->createMessage($conversation, $startMessage);
+//                $conversation->messages()->create([
+//                    'content' => $startMessage,
+////                    'content' => 'Order accepted, number #' . $model->id,
+////                'sender_id' => $order->user_id,
+////                'sender_type' => get_class($order->provider),
+//                ]);
+            }
+        }
+        return $conversation;
+    }
+
+    public function createConversationForType(string $type, $startMessage = null): Conversation|null
+    {
+        $conversation = $this->messageRepository->createConversationForType($type);
+
+        if ($startMessage) {
+            $this->messageRepository->createMessage($conversation, $startMessage);
+//            $conversation->messages()->create([
+//                'content' => $startMessage,
+//            ]);
+        }
+        return $conversation;
+    }
+
+
+
+
     /**
      * @throws Exception
      */
     public function createMessage($conversationId, $orderId, $content, $media): \App\Models\Message
     {
         $conversation = $this->getConversation($conversationId, $orderId);
-//            if (!$conversationId) {
-//                $conversation = $this->messageRepository->getConversationIdByModelId($orderId);
-//                $conversationId = $conversation->id;
-//            } else {
-//                $conversation = $this->messageRepository->getConversationIdById($conversationId);
-//            }
+
         if (!$conversation) {
             $this->notFoundException('conversation not found');
         }
         if (!$conversation->is_active) {
             $this->notFoundException('conversation is not active');
         }
-        $message = $this->messageRepository->createMessage($conversationId, $content);
+        $senderId = auth()->id();
+        $senderType = get_class(auth()->user());
+        $message = $this->messageRepository->createMessage($conversationId, $content , $senderId, $senderType);
 
         $this->handleMedia($message, $media);
         $this->pushToSocket($message, $conversation);

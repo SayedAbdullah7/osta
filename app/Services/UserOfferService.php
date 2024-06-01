@@ -16,6 +16,12 @@ use Illuminate\Support\Facades\DB;
 class UserOfferService
 {
     use ApiResponseTrait;
+    private $messageService;
+
+    public function __construct(MessageService $messageService)
+    {
+        $this->messageService = $messageService;
+    }
 
     /**
      * Get offers for a specific order.
@@ -117,7 +123,8 @@ class UserOfferService
             // upate order to acccepted
             $order = $offer->order;
             $order = $this->updateOrderToAccepted($order, $offer->provider_id, $offer->price);
-            $this->createConversationForOrder($order);
+//            $this->createConversationForOrder($order);
+            $this->messageService->createConversationForModel($order, 'Order accepted, number #' . $order->id);
 
             //chat start
 

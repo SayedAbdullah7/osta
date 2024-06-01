@@ -7,6 +7,7 @@ use App\Http\Requests\StoreMessageRequest;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Order;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
 class MessageRepository
@@ -42,18 +43,51 @@ class MessageRepository
         return Conversation::find($conversationId);
     }
 
+    public function createConversationForModel(Model $model): Conversation
+    {
+        $conversation = new Conversation();
+        $conversation->model_id = $model->id;
+        $conversation->model_type = \get_class($model);
+        $conversation->type = strtolower(class_basename($model));
+        $conversation->save();
+
+        return $conversation;
+    }
+
+    public function createConversationForType($type): Conversation
+    {
+        $conversation = new Conversation();
+        $conversation->type = $type;
+        $conversation->save();
+        return $conversation;
+    }
+
+//    public function createMessageForConversation(Conversation $conversation, $content): Message
+//    {
+//        $message = new Message();
+//        $message->content = $content;
+//        $message->conversation_id = $conversation->id;
+//        $message->sender_id = auth()->id();
+//        $message->sender_type = get_class(auth()->user());
+//        $message->save();
+//        return $message;
+//
+//    }
+
     /**
      * @param $conversationId
      * @param $request
      * @return Message
      */
-    public function createMessage($conversationId, $content): Message
+    public function createMessage($conversationId, $content,$senderId = null, $senderType = null): Message
     {
         $message = new Message();
         $message->content = $content;
         $message->conversation_id = $conversationId;
-        $message->sender_id = auth()->id();
-        $message->sender_type = get_class(auth()->user());
+        $message->sender_id = $senderId;
+        $message->sender_type = $senderType;
+//        $message->sender_id = auth()->id();
+//        $message->sender_type = get_class(auth()->user());
         $message->save();
         return $message;
     }

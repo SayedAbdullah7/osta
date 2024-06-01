@@ -75,6 +75,7 @@ class UserController extends Controller
             $user->country_id = $request->country_id;
             $user->gender = $request->gender == 'male' ? 1 : 0;
             $user->date_of_birth = $request->date_of_birth;
+
             $user->save();
 
             // If the request has an image, add it to the user's profile
