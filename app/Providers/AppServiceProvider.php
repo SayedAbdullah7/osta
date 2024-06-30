@@ -16,7 +16,10 @@ class AppServiceProvider extends ServiceProvider
 //        $this->app->bind(OrderRepositoryInterface::class, OrderRepository::class);
         $this->app->bind(\App\Repositories\Interfaces\OrderRepositoryInterface::class, OrderRepository::class);
         $this->app->bind(OrderRepositoryInterface::class, OrderRepository::class);
-
+        if ($this->app->environment('local')) {
+            $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
+            $this->app->register(TelescopeServiceProvider::class);
+        }
 
 
     }

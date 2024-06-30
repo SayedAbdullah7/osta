@@ -25,10 +25,13 @@ return new class extends Migration
             $table->mediumInteger('price')->unsigned()->nullable();
             $table->mediumInteger('max_allowed_price')->unsigned()->nullable();
             $table->boolean('unknown_problem')->default(false);
+            $table->decimal('location_latitude',10,7)->index();
+            $table->decimal('location_longitude',10,7)->index();
+            $table->string('location_desc')->nullable();
             $table->foreignIdFor(\App\Models\User::class)->constrained()->restrictOnDelete();
             $table->foreignIdFor(\App\Models\Service::class)->constrained()->restrictOnDelete();
             $table->foreignIdFor(\App\Models\Provider::class)->nullable()->constrained()->restrictOnDelete();
-            $table->foreignIdFor(\App\Models\Location::class)->constrained()->restrictOnDelete();
+//            $table->foreignIdFor(\App\Models\Location::class)->constrained()->restrictOnDelete();
             $table->timestamps();
         });
     }

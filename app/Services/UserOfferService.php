@@ -37,8 +37,8 @@ class UserOfferService
 //            $query->where('user_id', $user->id);
 //        })->where('status', OrderStatusEnum::PENDING)->first();
         $order = Order::find($orderId);
-        $latitude = $order->location->latitude;
-        $longitude = $order->location->longitude;
+//        $latitude = $order->location->latitude;
+//        $longitude = $order->location->longitude;
 //        $offers = Offer::selectRaw("
 //        *,
 //        ( 6371 * acos( cos( radians(?) ) *
@@ -124,7 +124,8 @@ class UserOfferService
             $order = $offer->order;
             $order = $this->updateOrderToAccepted($order, $offer->provider_id, $offer->price);
 //            $this->createConversationForOrder($order);
-            $this->messageService->createConversationForModel($order, 'Order accepted, number #' . $order->id);
+            $membersModels = [$offer->provider, $order->user];
+            $this->messageService->createConversationForModel($order,$membersModels, 'Order accepted, number #' . $order->id);
 
             //chat start
 

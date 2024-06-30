@@ -9,15 +9,17 @@ class Location extends Model
 {
     use HasFactory;
 
+    protected $guarded = [];
+
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
-    public function city()
-    {
-        return $this->belongsTo(City::class);
-    }
+//    public function city()
+//    {
+//        return $this->belongsTo(City::class);
+//    }
     public function isDefault(): bool
     {
         return $this->is_default == 1;

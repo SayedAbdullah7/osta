@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Location;
@@ -168,4 +169,69 @@ class UserController extends Controller
     {
         return User::where('phone', $phone)->first();
     }
+
+    public function profile(): \Illuminate\Http\JsonResponse
+    {
+        $user = Auth::guard('user')->user()->load('country','media');
+
+        return $this->respondWithResource(new UserResource($user), 'profile');
+    }
+
+    public function update(UpdateUserRequest $request): \Illuminate\Http\JsonResponse
+    {
+        $user = Auth::guard('user')->user();
+
+        // Start a database transaction
+        $updatedUser = DB::transaction(static function () use ($user, $request) {
+            // Update user details
+//            if ($request->has('name')) {
+//                $user->name = $request->name;
+//            }
+//            if ($request->has('email')) {
+//                $user->email = $request->email;
+//            }
+//            if ($request->has('phone')) {
+//                $user->phone = $request->phone;
+//            }
+
+
+            // Update user details individually
+            if ($request->has('name')) {
+                $user->name = $request->name;
+            }
+            if ($request->has('email')) {
+                $user->email = $request->email;
+            }
+            if ($request->has('phone')) {
+                $user->phone = $request->phone;
+            }
+            if ($request->has('country_id')) {
+                $user->country_id = $request->country_id;
+            }
+            if ($request->has('gender')) {
+                $user->gender = $request->gender == 'male' ? 1 : 0;
+            }
+            if ($request->has('date_of_birth')) {
+                $user->date_of_birth = $request->date_of_birth;
+            }
+
+            if ($user->isDirty()) {
+                $user->save();
+            }
+
+            // If the request has an image, add it to the user's profile
+            if ($request->hasFile('personal')) {
+                // Remove old personal image
+                $user->clearMediaCollection('personal');
+
+                // Add new personal image
+                $user->addMediaFromRequest('personal')->toMediaCollection('personal');
+            }
+
+            return $user->load('country','media');
+        });
+
+        return $this->respondWithResource(new UserResource($updatedUser), 'Profile updated successfully');
+    }
+
 }

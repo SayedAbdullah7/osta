@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\Cache;
 
 class MessageRepository
 {
-    public function getSimplePaginateMessagesByConversationId($perPage, $page, $conversationId): \Illuminate\Pagination\Paginator
+    public function getSimplePaginateMessagesByConversationId($perPage, $page, $conversationId): \Illuminate\Contracts\Pagination\Paginator
     {
-        return Message::where('conversation_id', $conversationId)->orderBy('id', 'desc')->simplePaginate($perPage, ['*'], 'page', $page);
+//        return Message::where('conversation_id', $conversationId)->orderBy('id', 'desc')->simplePaginate($perPage, ['*'], 'page', $page);
+        return Message::with('media')->where('conversation_id', $conversationId)->orderBy('id', 'desc')->simplePaginate($perPage, ['*'], 'page', $page);
     }
 
     public function getSimplePaginateMessagesByOrderId($perPage, $page, $orderId): \Illuminate\Pagination\Paginator
@@ -96,4 +97,15 @@ class MessageRepository
     {
         return $message->addMedia($media)->toMediaCollection();
     }
+
+    public function addMembersToConversation(Conversation $conversation, $members): void
+    {
+        $memberIds = collect($members)->map(fn($member) => [
+            'user_id' => $member->id,
+            'user_type' => \get_class($member),
+        ]);
+
+        $conversation->members()->createMany($memberIds);
+    }
+
 }

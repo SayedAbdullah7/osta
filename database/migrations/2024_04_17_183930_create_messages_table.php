@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
-            $table->text('content');
+            $table->text('content')->nullable();
             $table->boolean('is_read')->default(false);
-            $table->morphs('sender');
+            $table->morphs('sender')->nullable();
             $table->json('options')->nullable();
             $table->foreignIdFor(\App\Models\Conversation::class)->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->timestamps();

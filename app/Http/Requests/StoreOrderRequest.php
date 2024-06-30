@@ -37,8 +37,18 @@ class StoreOrderRequest extends FormRequest
             'desc' => 'max:255',
 //            'desc' => 'required_if:unknown_problem,true|max:255',
             'service_id' => 'required|exists:services,id',
+            'location_latitude' => [
+                'required_without_all:location_id',
+                'numeric',
+            ],
+            'location_longitude' => [
+                'required_without_all:location_id',
+                'numeric',
+            ],
+            'location_desc' => 'nullable|max:255',
             'location_id' => [
-                'required',
+                'required_if:location_latitude,null',
+                'required_if:location_longitude,null',
                 Rule::exists('locations', 'id')->where(function ($query) use ($user) {
                     $query->where('user_id', $user->id);
                 }),

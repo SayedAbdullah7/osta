@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             FaqCategorySeeder::class,
             FaqSeeder::class,
             PrivacyPolicySeeder::class,
+            SpacesTableSeeder::class,
+            SpaceServiceTableSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

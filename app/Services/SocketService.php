@@ -17,9 +17,9 @@ class SocketService
     }
     public function push( $roomPrefix,$data, array$users, $event, $msg = null)
     {
-        if (!in_array($roomPrefix, ['user', 'provider'])) {
-            throw new \InvalidArgumentException('Invalid room prefix. It should be either "users" or "providers".');
-        }
+//        if (!in_array($roomPrefix, ['user', 'provider'])) {
+//            throw new \InvalidArgumentException('Invalid room prefix. It should be either "users" or "providers".');
+//        }
         $data = $data;
         $msg = $msg;
         $event = $event;

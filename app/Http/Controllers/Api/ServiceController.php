@@ -30,7 +30,15 @@ class ServiceController extends Controller
 
         if(request()->group_by_type){
             $subServices = collect(['new' => collect(), 'fix' => collect()])->merge($subServices->groupBy('type'));
-            return $this->respondSuccess($subServices, '', 200);
+
+            return $this->apiResponse(
+                [
+                    'success' => true,
+                    'result' => $subServices,
+                    'message' => 'Sub Services fetched successfully',
+                ]
+                , 200);
+//            return $this->respondSuccess($subServices, '', 200);
         }
 //        return $subServices;
         return $this->respondWithResource(SubServiceResource::collection($subServices), '', 200);

@@ -28,7 +28,7 @@ class MessageResource extends JsonResource
             "is_me" => (boolean)$this->sender_id == $userId && $this->sender_type == $class,
             'is_read' => (boolean)$this->is_read,
             'created_at' => date_format($this->created_at, 'Y-m-d H:i:s'),
-            'media' => $this->getMedia('media')->map(function ($media) {
+            'media' => $this->getMedia('default')->map(function ($media) {
                 return [
                     'id' => $media->id,
                     'url' => $media->getUrl(),

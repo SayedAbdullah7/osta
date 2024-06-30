@@ -35,9 +35,26 @@ class MessageController extends Controller
 
         $perPage = $request->input('per_page', 10);
         $page = $request->input('page', 1);
+        $perPage = 300;
+        $page = 1;
 
-        $messages = $this->messageService->getMessages($perPage, $page, $request->conversation_id, $request->order_id);
-        return $this->respondWithResource(MessageResource::collection($messages), 'Messages retrieved successfully');
+        $conversation = $this->getConversation($request->conversation_id, $request->order_id);
+        if (!$conversation) {
+            return $this->respondNotFound('conversation not found');
+        }
+
+        [$messages, $conversation] = $this->messageService->getMessagesWithConversation($perPage, $page, $request->conversation_id, $request->order_id);
+        return $this->apiResponse(
+            [
+                'success' => true,
+                'result' => [
+                    'messages' => MessageResource::collection($messages),
+                    'conversation' => $conversation,
+                ],
+                'message' => 'Messages retrieved successfully'
+            ]
+        );
+//        return $this->respondWithResource(MessageResource::collection($messages), 'Messages retrieved successfully');
 
 
         $conversation = $this->getConversation($request->conversation_id, $request->order_id);
@@ -51,7 +68,6 @@ class MessageController extends Controller
 
         $class = get_class(auth()->user());
         $userId = auth()->id();
-
         $messages = Cache::remember($userId . $class . 'messages', 1, function () use ($conversation, $userId, $class, $perPage, $page) {
             $conversation->messages()->where('sender_id', '!=', $userId)->where('sender_type', '!=', $class)->update(['is_read' => 1]);
             return $conversation->messages()->orderBy('id', 'desc')->simplePaginate($perPage,['*'],'page',$page);
@@ -61,7 +77,17 @@ class MessageController extends Controller
         });
 
 
-        return $this->respondWithResource(MessageResource::collection($messages), 'Messages retrieved successfully');
+//        return $this->respondWithResource(MessageResource::collection($messages), 'Messages retrieved successfully');
+        return $this->apiResponse(
+            [
+                'success' => true,
+                'result' => [
+                    'messages' => MessageResource::collection($messages),
+                    'conversation' => $conversation,
+                ],
+                'message' => $message
+            ], $statusCode, $headers
+        );
     }
 
 //    public function sendMessage(StoreMessageRequest $request)
@@ -117,7 +143,7 @@ class MessageController extends Controller
      */
     public function sendMessage(StoreMessageRequest $request): \Illuminate\Http\JsonResponse
     {
-        $message = $this->messageService->createMessage($request->conversation_id, $request->order_id, $request->content, $request->media);
+        $message = $this->messageService->createMessage($request->conversation_id, $request->order_id, $request->input('content'), $request->media);
         return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
     }
 //        $conversation = $this->getConversation($request->conversation_id, $request->order_id);
@@ -215,7 +241,7 @@ class MessageController extends Controller
         if (!$conversationId) {
             $order = Order::find($orderId);
             $conversation = $order->conversation;
-        }elseif($orderId) {
+        }else {
             $conversation = Conversation::find($conversationId);
         }
         return $conversation??null;

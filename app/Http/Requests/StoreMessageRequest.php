@@ -14,11 +14,12 @@ class StoreMessageRequest extends FormRequest
     public function rules()
     {
         return [
-            'content' => 'required_without:media|string',
+            'content' => 'required_without:media',
             'conversation_id' => 'required_without:order_id|exists:conversations,id',
             'order_id' => 'required_without:conversation_id|exists:orders,id',
 //            'media' => 'required'
-            'media.*' => 'file|mimes:jpeg,jpg,png,mp4,mov,ogg|max:50000', // max 50MB
+            'media.*' => 'file'
+//            'media.*' => 'file|mimes:jpeg,jpg,png,mp4,mov,ogg|max:6000', // max 6MB
         ];
     }
 }

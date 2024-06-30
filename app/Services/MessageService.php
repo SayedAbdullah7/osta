@@ -10,6 +10,7 @@ use App\Repositories\MessageRepository;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MessageService
@@ -28,7 +29,6 @@ class MessageService
     {
         if (!$conversationId) {
             $conversation = $this->messageRepository->getConversationIdByModelId($orderId);
-            $conversationId = $conversation->id;
         } else {
             $conversation = $this->messageRepository->getConversationIdById($conversationId);
         }
@@ -38,20 +38,39 @@ class MessageService
         if (!$conversation->is_active) {
             $this->notFoundException('conversation is not active');
         }
+        $conversationId = $conversation->id;
 
         return $this->messageRepository->getSimplePaginateMessagesByConversationId($perPage, $page, $conversationId);//    return $this->messageRepository->getMessages($request);
     }
 
-    public function createConversationForModel(Model $model,$startMessage = null): Conversation|null
+    public function getMessagesWithConversation($perPage, $page, $conversationId, $orderId): array
+    {
+        if (!$conversationId) {
+            $conversation = $this->messageRepository->getConversationIdByModelId($orderId);
+        } else {
+            $conversation = $this->messageRepository->getConversationIdById($conversationId);
+        }
+        if (!$conversation) {
+            $this->notFoundException('conversation not found');
+        }
+        if (!$conversation->is_active) {
+            $this->notFoundException('conversation is not active');
+        }
+        $conversationId = $conversation->id;
+
+        return [$this->messageRepository->getSimplePaginateMessagesByConversationId($perPage, $page, $conversationId), $conversation];//]/    return $this->messageRepository->getMessages($request);
+    }
+
+    public function createConversationForModel(Model $model,$members,$startMessage = null): Conversation|null
     {
         $conversation = $model->conversation;
         if (!$conversation) {
             $conversation = $this->messageRepository->createConversationForModel($model);
-
+            $this->messageRepository->addMembersToConversation($conversation, $members);
 //            $conversation->participants()->attach($order->user_id);
 
             if ($startMessage) {
-                $this->messageRepository->createMessage($conversation, $startMessage);
+                $this->messageRepository->createMessage($conversation->id, $startMessage);
 //                $conversation->messages()->create([
 //                    'content' => $startMessage,
 ////                    'content' => 'Order accepted, number #' . $model->id,
@@ -92,12 +111,16 @@ class MessageService
         if (!$conversation->is_active) {
             $this->notFoundException('conversation is not active');
         }
+        $conversationId = $conversation->id;
         $senderId = auth()->id();
         $senderType = get_class(auth()->user());
+//        Storage::put('data.json', json_encode([$conversationId]));
         $message = $this->messageRepository->createMessage($conversationId, $content , $senderId, $senderType);
+        Storage::put('message1.json', json_encode([$message]));
 
         $this->handleMedia($message, $media);
         $this->pushToSocket($message, $conversation);
+        Storage::put('message3.json', json_encode([$message]));
         return $message;
 
     }
@@ -121,22 +144,28 @@ class MessageService
     {
 //            if ($request->hasFile('media')) {
 //                $files = $request->file('media');
-        foreach ($files as $file) {
-            $this->messageRepository->addMedia($file, $message);
+        if($files){
+            foreach ($files as $file) {
+                $this->messageRepository->addMedia($file, $message);
+            }
         }
+
 //            }
     }
 
     private function pushToSocket($message, $conversation): void
     {
-        $data = new MessageResource($message);
+
         $event = 'chat_message';
         $msg = "you have a new message from " . auth()->user()->name . " in " . $conversation->name . " chat";
 
         $users = [];
         $providers = [];
         foreach ($conversation->members as $member) {
-            if ($member->user_id == $member->sender_id && $member->user_type == $member->sender_type) {
+//            \Illuminate\Support\Facades\Storage::put(time().'member.json', json_encode([$member,$message]));
+
+            if ($member->user_id == $message->sender_id && $member->user_type == $message->sender_type) {
+//                \Illuminate\Support\Facades\Storage::put(time().'memberTrue.json', json_encode([$member]));
                 continue;
             }
             if ($member->user_type == 'App\Models\User') {
@@ -149,9 +178,21 @@ class MessageService
         $to = ['users' => $users, 'providers' => $providers];
 
 //        $socketService->push('user', $data, $to, $event, $msg);
+
+        // fix is me = true
+        $messageClone = clone $message;
+        $messageClone->sender_id = null;
+        $data = new MessageResource($messageClone);
+        Storage::put('message2.json', json_encode([$messageClone]));
+
         $socketService = new SocketService();
-        $socketService->push('provider', $data, $providers, $event, $msg);
-        $socketService->push('user', $data, $users, $event, $msg);
+        $room = 'conversation.' . $conversation->id;
+        if (!empty($users)) {
+            $socketService->push($room.'.user', $data, $users, $event, $msg);
+        }
+        if (!empty($providers)) {
+            $socketService->push($room.'.provider', $data, $providers, $event, $msg);
+        }
 
     }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterProviderRequest;
+use App\Http\Requests\UpdateProviderRequest;
 use App\Http\Resources\ProviderResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Provider;
@@ -97,7 +98,10 @@ class ProviderController extends Controller
         $mediaFields = ['personal', 'front_id', 'back_id', 'certificate'];
 
         foreach ($mediaFields as $field) {
-            $provider->addMediaFromRequest($field)->toMediaCollection($field);
+            if ($request->hasFile($field)) {
+                $provider->clearMediaCollection($field); // Remove old media
+                $provider->addMediaFromRequest($field)->toMediaCollection($field);
+            }
         }
     }
 
@@ -116,11 +120,10 @@ class ProviderController extends Controller
     /**
      * Register a new provider with phone number.
      *
-     * @param RegisterProviderRequest $request
+         * @param RegisterProviderRequest $request
      * @return JsonResponse
      */
-    public
-    function registerProvider(RegisterProviderRequest $request): JsonResponse
+    public function registerProvider(RegisterProviderRequest $request): JsonResponse
     {
         $provider = DB::transaction(function () use ($request) {
 
@@ -190,7 +193,7 @@ class ProviderController extends Controller
     function generateOTP(Request $request): \Illuminate\Http\JsonResponse
     {
         // Validate the incoming request
-        $validatedData = $request->validate([
+            $validatedData = $request->validate([
             'phone' => 'required|string|max:15',
         ]);
 
@@ -220,5 +223,60 @@ class ProviderController extends Controller
         return Provider::where('phone', $phone)->first();
     }
 
+    public function profile(): JsonResponse
+    {
+        $provider = Auth::guard('provider')->user()->load('country','media','services')->loadCount('orders');
+
+        return $this->respondWithResource(new ProviderResource($provider), 'provider profile');
+    }
+
+    public function update(UpdateProviderRequest $request): JsonResponse
+    {
+        $provider = Auth::guard('provider')->user()->load('country','media','services')->loadCount('orders');
+
+        $updatedProvider = DB::transaction(function () use ($provider, $request) {
+            $this->updateProviderModel($provider, $request);
+            $this->handleMediaUploads($provider, $request);
+            if ($request->service_id && !empty($request->service_id)) {
+                $this->syncServicesAndBankAccount($provider, $request);
+            }
+
+            return $provider;
+        });
+
+        return $this->respondWithResource(new ProviderResource($updatedProvider), 'Profile updated successfully');
+    }
+    protected function updateProviderModel(Provider $provider, $request): void
+    {
+        if ($request->has('first_name')) {
+            $provider->first_name = $request->input('first_name');
+        }
+
+        if ($request->has('last_name')) {
+            $provider->last_name = $request->input('last_name');
+        }
+
+        if ($request->has('email')) {
+            $provider->email = $request->input('email');
+        }
+
+        if ($request->has('gender')) {
+            $provider->gender = $request->input('gender') == "male" ? 1 : 0;
+        }
+//        $provider->first_name = $request->input('first_name');
+//        $provider->last_name = $request->input('last_name');
+////        $provider->phone = $request->input('phone');
+//        $provider->email = $request->input('email');
+//        $provider->gender = $request->input('gender') == "male" ? 1 : 0;
+        if ($request->has('country_id')) {
+            $provider->country_id = $request->input('country_id');
+        }
+        if ($request->has('city_id')) {
+            $provider->city_id = $request->input('city_id');
+        }
+        if ($provider->isDirty()) {
+            $provider->save();
+        }
+    }
 
 }

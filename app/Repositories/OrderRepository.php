@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Enums\OrderCategoryEnum;
 use App\Enums\OrderStatusEnum;
+use App\Models\Location;
 use App\Models\Order;
 use App\Models\Provider;
 use App\Models\User;
@@ -28,6 +29,10 @@ class OrderRepository implements OrderRepositoryInterface
     public function getOrdersForUser(User $user): Collection
     {
         return $user->orders()->withCount('offers')->with(['service','subServices'])->get();
+    }
+    public function getOrdersForUserWithStatusIn(mixed $user, array $statuses)
+    {
+        return $user->orders()->withCount('offers')->with(['service','subServices'])->whereIn('status', $statuses)->get();
     }
     public function find(int $id)
     {
@@ -88,7 +93,7 @@ class OrderRepository implements OrderRepositoryInterface
         return $query->when($sortBy === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude, $sortDesc) {
             $haversine = Order::calculateHaversineDistance($providerLatitude, $providerLongitude);
             return $query->select('orders.*', $haversine)
-                ->join('locations', 'orders.location_id', '=', 'locations.id')
+//                ->join('locations', 'orders.location_id', '=', 'locations.id')
                 ->orderBy('distance', $sortDesc ? 'desc' : 'asc');
         }, function ($query) use ($sortBy, $sortDesc) {
             return $query->orderBy($sortBy === 'time' ? 'start' : 'id', $sortDesc ? 'desc' : 'asc');
@@ -224,9 +229,12 @@ class OrderRepository implements OrderRepositoryInterface
         $order->desc = $data['desc']??null;
         $order->service_id = $data['service_id'];
         //$order->provider_id = $data['provider_id'];
-        $order->location_id = $data['location_id'];
+//        $order->location_id = $data['location_id']??null;
 
         $order->user_id = $user->id;
+        $order->location_latitude = $data['location_latitude'];
+        $order->location_longitude = $data['location_longitude'];
+        $order->location_desc = $data['location_desc'];
         $order->save();
 
         return $order;
@@ -316,5 +324,12 @@ class OrderRepository implements OrderRepositoryInterface
             throw new Exception($e);
         }
     }
+
+    public function getLocationById( $location_id)
+    {
+        return Location::find($location_id);
+    }
+
+
 
 }

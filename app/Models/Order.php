@@ -78,7 +78,7 @@ class Order extends Model implements HasMedia
      */
     public static function calculateHaversineDistance(float $providerLatitude, float $providerLongitude): Expression
     {
-        return DB::raw('ROUND((6371 * acos(cos(radians(' . $providerLatitude . ')) * cos(radians(locations.latitude)) * cos(radians(locations.longitude) - radians(' . $providerLongitude . ')) + sin(radians(' . $providerLatitude . ')) * sin(radians(locations.latitude)))), 2) AS distance');
+        return DB::raw('ROUND((6371 * acos(cos(radians(' . $providerLatitude . ')) * cos(radians(location_latitude)) * cos(radians(location_longitude) - radians(' . $providerLongitude . ')) + sin(radians(' . $providerLatitude . ')) * sin(radians(location_latitude)))), 2) AS distance');
     }
 
     public function isAvailableToAccept(): bool

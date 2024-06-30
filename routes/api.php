@@ -22,6 +22,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::middleware([])->group(function () {
 
     Route::prefix('user')->group(function () {
+
+
         Route::post('check-phone', [\App\Http\Controllers\Api\UserController::class, 'checkPhoneRegistered']);
 
         // Register a new user with phone number
@@ -34,6 +36,12 @@ Route::middleware([])->group(function () {
         Route::post('generate-otp', [\App\Http\Controllers\Api\UserController::class, 'generateOTP']);
 
         Route::middleware('auth:user')->group(function () {
+
+            Route::get('profile', [\App\Http\Controllers\Api\UserController::class, 'profile']);
+            Route::post('update-profile', [\App\Http\Controllers\Api\UserController::class, 'update']);
+            Route::post('profile', [\App\Http\Controllers\Api\UserController::class, 'update']);
+            Route::put('profile', [\App\Http\Controllers\Api\UserController::class, 'update']);
+
             //location
             Route::get('location', [\App\Http\Controllers\Api\LocationController::class, 'index']);
             Route::post('location', [\App\Http\Controllers\Api\LocationController::class, 'store']);
@@ -55,6 +63,8 @@ Route::middleware([])->group(function () {
 
 
     Route::prefix('provider')->group(function () {
+
+
         Route::post('check-phone', [\App\Http\Controllers\Api\ProviderController::class, 'checkPhoneRegistered']);
 
         // Register a new provider with phone number
@@ -69,6 +79,11 @@ Route::middleware([])->group(function () {
         Route::post('verify', [\App\Http\Controllers\Api\ProviderController::class, 'verify']);
 
         Route::middleware(['auth:provider'])->group(function () {
+
+            Route::get('profile', [\App\Http\Controllers\Api\ProviderController::class, 'profile']);
+            Route::put('profile', [\App\Http\Controllers\Api\ProviderController::class, 'update']);
+            Route::post('profile', [\App\Http\Controllers\Api\ProviderController::class, 'update']);
+
 
             Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
             //order

@@ -39,7 +39,13 @@ class OrderController extends Controller
     public function getUserOrders(): JsonResponse
     {
         $user = request()->user();
-        $orders = $this->orderRepository->getOrdersForUser($user);
+        $status = \request()->status;
+        if ($status){
+            $statuses = [$status];
+            $orders = $this->orderRepository->getOrdersForUserWithStatusIn($user,$statuses);
+        }else{
+            $orders = $this->orderRepository->getOrdersForUser($user);
+        }
         return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
 //        $user = request()->user();
 //        $orders = $user->orders()->get();
@@ -72,6 +78,16 @@ class OrderController extends Controller
 
             $validatedData = $request->validated();
 
+            if(isset($validatedData['location_id']) && $validatedData['location_id'] ){
+                $location = $this->orderRepository->getLocationById($validatedData['location_id']);
+                $array =[
+                    'location_latitude'=> $location->latitude,
+                    'location_longitude' => $location->longitude,
+                    'location_desc'=>$location->desc
+                ];
+                $validatedData = array_merge($validatedData,$array);
+            }
+
             $order = $this->orderRepository->createOrderBeLongToUser($validatedData, $user);
 
             // Attach sub-services to the order with quantities
@@ -80,8 +96,12 @@ class OrderController extends Controller
 
                 $subServices = $request->input('sub_services_ids');
                 $quantities = $request->input('sub_service_quantities');
-                \Illuminate\Support\Facades\Storage::put('line83.json', json_encode(['sub_services_ids' => $subServices, 'sub_service_quantities' => $quantities]));
-                $order = $this->orderRepository->attachSubServicesToOrder(array_combine($subServices, $quantities), $order);
+
+                $pivotData = array_combine($subServices, array_map(static function ($quantity) {
+                    return ['quantity' => $quantity];
+                }, $quantities));
+
+                $order = $this->orderRepository->attachSubServicesToOrder($pivotData, $order);
 
                 $order =$this->orderRepository->setMaxPriceForOrder($order);
 
@@ -102,5 +122,7 @@ class OrderController extends Controller
 //        $this
         return $this->respondWithResource(new OrderResource($order), 'order created successfully');
     }
+
+
 
 }

@@ -71,7 +71,7 @@ class ProviderOfferService
             return $this->respondError('Cannot send more than one offer for the same order');
         }
 
-        if ($this->canProviderSendMoreOffers($providerId)) {
+        if (!$this->canProviderSendMoreOffers($providerId)) {
             return $this->respondError('Maximum number of offers for the provider reached');
         }
 
@@ -108,8 +108,8 @@ class ProviderOfferService
 
             // calculate the distance between the provider and the order location
             // Create the offer
-            $orderLatitude = $order->location->latitude;
-            $orderLongitude = $order->location->longitude;
+            $orderLatitude = $order->location_latitude;
+            $orderLongitude = $order->location_longitude;
             $providerLatitude = $data['latitude'];
             $providerLongitude = $data['longitude'];
             $distance = $this->calculateDistanceBetweenProviderAndOrder($providerLatitude, $providerLongitude, $orderLatitude, $orderLongitude);

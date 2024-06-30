@@ -26,15 +26,19 @@ class OrderResource extends JsonResource
             'price' => $this->price,
             'unknown_problem'=>$this->unknown_problem,
             'max_allowed_price' => $this->max_allowed_price,
+            'location_latitude' => $this->location_latitude,
+            'location_longitude' => $this->location_longitude,
+            'location_desc' => $this->location_desc,
             'user' => new UserResource($this->whenLoaded('user')),
             'service' => new ServiceResource($this->whenLoaded('service')),
             'provider' => new ProviderResource($this->whenLoaded('provider')),
-            'location' => new LocationResource($this->whenLoaded('location')),
+//            'location' => new LocationResource($this->whenLoaded('location')),
             'sub_services' => SubServiceResource::collection($this->whenLoaded('subServices')),
             'images' => $this->getMedia('images')->map(function (Media $media) {
                 return $media->getFullUrl();
             }),
             'total_pending_offers' => $this->whenCounted('offers_count'),
+            'distance'=> $this->distance,
 //            ' => $this->whenCounted('orders_count'),
 //            'images2' => $this->getMediaUrls('images'),
         ];
