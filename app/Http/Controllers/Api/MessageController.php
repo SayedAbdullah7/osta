@@ -42,14 +42,44 @@ class MessageController extends Controller
         if (!$conversation) {
             return $this->respondNotFound('conversation not found');
         }
+        if ($conversation->type == 'order'){
+            $participant = $conversation->members()
+                ->where(function ($query) {
+                    $query->where('user_id', '!=', auth()->id())
+                        ->orWhere('user_type', '!=', get_class(auth()->user()));
+                })
+                ->first();
+//        $this->messageRepository->addMembersToConversation($conversation, $members);
+            if (!$participant && $conversation->type == 'order') {
+                $order = Order::find($conversation->model_id);
+                $userOfOrder = $order->user;
+                $providerOfOrder = $order->provider;
+                if ($userOfOrder->id == auth()->id() && get_class(auth()->user()) == 'App\Models\User') {
+                    $conversation->members()->create([
+                        'user_id' => $providerOfOrder->id,
+                        'user_type' => \get_class($providerOfOrder)
+                    ]);
+                } elseif ($providerOfOrder->id == auth()->id() && get_class(auth()->user()) == 'App\Models\Provider') {
+                    $conversation->members()->create([
+                        'user_id' => $userOfOrder->id,
+                        'user_type' => \get_class($userOfOrder)
+                    ]);
+                }
+                $participant = $conversation->members()->where('user_id', '!=', auth()->id())->where('user_type', '!=', get_class(auth()->user()))->first();
+            }
+            $participantModel  = $participant->user;
+            $participantName = $participantModel->name??$participantModel->first_name;
 
+        }
         [$messages, $conversation] = $this->messageService->getMessagesWithConversation($perPage, $page, $request->conversation_id, $request->order_id);
+
         return $this->apiResponse(
             [
                 'success' => true,
                 'result' => [
                     'messages' => MessageResource::collection($messages),
                     'conversation' => $conversation,
+                    'participant' => $participantName??null,
                 ],
                 'message' => 'Messages retrieved successfully'
             ]
@@ -144,6 +174,31 @@ class MessageController extends Controller
     public function sendMessage(StoreMessageRequest $request): \Illuminate\Http\JsonResponse
     {
         $message = $this->messageService->createMessage($request->conversation_id, $request->order_id, $request->input('content'), $request->media);
+        return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
+    }
+    public function makeAction(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $this->validate($request, [
+            'conversation_id' => 'required|exists:conversations,id',
+//            'order_id' => 'required|exists:orders,id',
+            'action' => 'required|in:additional_cost',
+            'action_value' => 'required',
+        ]);
+        $message= $this->messageService->makeAction($request->conversation_id, $request->order_id, $request->input('action'),$request->input('action_value'));
+        return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
+    }
+    public function responseAction(Request $request)
+    {
+        $this->validate($request, [
+            'message_id' => 'required|exists:messages,id',
+            'response_value' => 'required|boolean',
+//            'action_name' => 'required|in:additional_cost',
+        ]);
+        $messageId = $request->message_id;
+        $responseValue = $request->response_value;
+//        $action = $request->input('action_name');
+
+        $message = $this->messageService->responseAction($messageId, $responseValue);
         return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
     }
 //        $conversation = $this->getConversation($request->conversation_id, $request->order_id);

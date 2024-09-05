@@ -12,12 +12,13 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Hash;
 
 class AdminResource extends Resource
 {
     protected static ?string $model = Admin::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-s-user-circle';
 
     public static function form(Form $form): Form
     {
@@ -30,7 +31,7 @@ class AdminResource extends Resource
                     ->email()
                     ->required()
                     ->maxLength(255),
-                Forms\Components\DateTimePicker::make('email_verified_at'),
+//                Forms\Components\DateTimePicker::make('email_verified_at'),
                 Forms\Components\TextInput::make('password')
                     ->password()
                     ->required()
@@ -46,9 +47,9 @@ class AdminResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('email_verified_at')
-                    ->dateTime()
-                    ->sortable(),
+//                Tables\Columns\TextColumn::make('email_verified_at')
+//                    ->dateTime()
+//                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -63,7 +64,10 @@ class AdminResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()->mutateFormDataUsing(function (array $data): array {
+                    $data['password'] = Hash::make($data['password']);
+                    return $data;
+                }),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
@@ -78,5 +82,26 @@ class AdminResource extends Resource
         return [
             'index' => Pages\ManageAdmins::route('/'),
         ];
+    }
+
+    // Override the `save` method to hash passwords before saving
+    public static function beforeSave($record, array $data): void
+    {
+        if (!empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        }
+    }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['password'] = Hash::make($data['password']);
+
+        return $data;
+    }
+
+    protected function handleRecordCreation(array $data): Model
+    {
+        $data['password'] = Hash::make($data['password']);
+        return static::getModel()::create($data);
     }
 }

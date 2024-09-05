@@ -1,7 +1,11 @@
 <?php
 
 namespace App\Repositories;
+
+use App\Enums\OfferStatusEnum;
+use App\Enums\OrderStatusEnum;
 use App\Models\Offer;
+use App\Services\ProviderOfferService;
 
 class OfferRepository
 {
@@ -12,12 +16,12 @@ class OfferRepository
             ->get();
     }
 
-    public function createOffer(array $data)
+    public function createOffer(array $data): Offer
     {
         return Offer::create($data);
     }
 
-    public function findOffer(int $providerId, int $orderId, string $status, bool $isSecond = false)
+    public function findOffer(int $providerId, int $orderId, OfferStatusEnum $status, bool $isSecond = false)
     {
         return Offer::where('provider_id', $providerId)
             ->where('order_id', $orderId)
@@ -26,21 +30,26 @@ class OfferRepository
             ->first();
     }
 
-    public function countOffersByProvider(int $providerId, string $status)
+    public function updateOffer(Offer $offer, array $data)
+    {
+        $offer->update($data);
+    }
+
+    public function countOffersByProvider(int $providerId, string $status): int
     {
         return Offer::where('provider_id', $providerId)
             ->where('status', $status)
             ->count();
     }
 
-    public function countOffersByOrder(int $orderId, string $status)
+    public function countOffersByOrder(int $orderId, string $status): int
     {
         return Offer::where('order_id', $orderId)
             ->where('status', $status)
             ->count();
     }
 
-    public function countOffersForProviderOrder(int $providerId, int $orderId)
+    public function countOffersForProviderOrder(int $providerId, int $orderId): int
     {
         return Offer::where('provider_id', $providerId)
             ->where('order_id', $orderId)
@@ -54,14 +63,14 @@ class OfferRepository
             ->count();
     }
 
-    public function removeOldOffers(int $orderId = null, int $providerId = null)
+    public function removeOldOffers(int $orderId = null, int $providerId = null): void
     {
         Offer::when($orderId, function ($query) use ($orderId) {
             $query->where('order_id', $orderId);
         })->when($providerId, function ($query) use ($providerId) {
             $query->where('provider_id', $providerId);
         })->where('status', OrderStatusEnum::PENDING)
-            ->where('created_at', '<', now()->subMinutes(ProviderOfferService::MaxOfferTime))
+            ->where('created_at', '<', now()->subMinutes(ProviderOfferService::MAX_OFFER_TIME))
             ->delete();
     }
 }

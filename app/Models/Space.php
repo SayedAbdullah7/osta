@@ -18,4 +18,10 @@ class Space extends Model
         return $this->belongsToMany(Service::class)
             ->withPivot('max_price'); // Include additional pivot columns
     }
+
+    public function subServices(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(SubService::class)
+            ->withPivot('max_price'); // Include additional pivot columns
+    }
 }

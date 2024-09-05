@@ -13,21 +13,29 @@ class SpaceServiceTableSeeder extends Seeder
      */
     public function run(): void
     {
+        if (\App\Models\SpaceSubService::count() > 0) {
+            return;
+        }
         $spaces = \App\Models\Space::all();
         $services = \App\Models\Service::where('category', OrderCategoryEnum::SpaceBased->value)->get();
 
-        if ($spaces->isEmpty() || $services->isEmpty()) {
-            return;
-        }
         // Seed the pivot table with relationships
-        $services->each(static fn($service) =>
-            $spaces->each(static fn($space) =>
-                $space->services()->attach(
-                    $service->id,
-                    ['max_price' => $space->id * $service->id * 10]
-                )
-            )
-        );
-    ;
+//        $spaces->each(fn($space) => $space->services()->attach(
+//            $services->random(rand(1, 3))->pluck('id')->toArray(),
+//            ['max_price' => rand(50, 200)] // Adjust max_price as needed
+//        ));
+        foreach ($services as $service) {
+            foreach ($service->subServices as $subService) {
+                $spaces->each(fn($space) => $space->subServices()->attach(
+                    [$subService->id],
+                    ['max_price' => rand(50, 200)] // Adjust max_price as needed
+                ));
+            }
+
+        }
+//        $spaces->each(fn($space) => $space->subServices()->attach(
+//            $services->random(rand(1, 3))->pluck('id')->toArray(),
+//            ['max_price' => rand(50, 200)] // Adjust max_price as needed
+//        ));
     }
 }

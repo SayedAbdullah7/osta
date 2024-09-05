@@ -23,8 +23,36 @@ class ServiceController extends Controller
     }
     public function sub_service_index()
     {
+        $service_id = request()->get('service_id');
+        $group_by_type = request()->get('group_by_type');
+
+        // Fetch the sub-services with the related spaces and apply filtering if service_id is provided
+        $subServices = SubService::with('spaces')
+            ->when($service_id, fn($query) => $query->where('service_id', $service_id))
+            ->get();
+
+        // If grouping by type is requested, group the sub-services
+        if ($group_by_type) {
+            $groupedSubServices = $subServices->groupBy('type');
+
+            return $this->apiResponse([
+                'success' => true,
+                'result' => [
+                    'new' => SubServiceResource::collection($groupedSubServices->get('new', collect())),
+                    'fix' => SubServiceResource::collection($groupedSubServices->get('fix', collect())),
+                ],
+                'message' => 'Sub Services fetched successfully',
+            ], 200);
+        }
+
+        // Return the sub-services as a resource collection
+        return $this->respondWithResource(
+            SubServiceResource::collection($subServices),
+            'Sub Services fetched successfully',
+            200
+        );
         $service_id = request()->service_id;
-        $subServices = SubService::when($service_id, function ($query, $service_id) {
+        $subServices = SubService::with('spaces')->when($service_id, function ($query, $service_id) {
             $query->where('service_id', $service_id);
         })->get();
 

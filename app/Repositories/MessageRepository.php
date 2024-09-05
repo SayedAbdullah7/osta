@@ -7,6 +7,8 @@ use App\Http\Requests\StoreMessageRequest;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Order;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -80,7 +82,7 @@ class MessageRepository
      * @param $request
      * @return Message
      */
-    public function createMessage($conversationId, $content,$senderId = null, $senderType = null): Message
+    public function createMessage($conversationId, $content, $senderId = null, $senderType = null, $options = null): Message
     {
         $message = new Message();
         $message->content = $content;
@@ -89,11 +91,14 @@ class MessageRepository
         $message->sender_type = $senderType;
 //        $message->sender_id = auth()->id();
 //        $message->sender_type = get_class(auth()->user());
+        if ($options) {
+            $message->options = $options;
+        }
         $message->save();
         return $message;
     }
 
-    public function addMedia($media,$message): \Spatie\MediaLibrary\MediaCollections\Models\Media
+    public function addMedia($media, $message): \Spatie\MediaLibrary\MediaCollections\Models\Media
     {
         return $message->addMedia($media)->toMediaCollection();
     }
@@ -108,4 +113,54 @@ class MessageRepository
         $conversation->members()->createMany($memberIds);
     }
 
+    public function makeAction($conversationId, $actionMessage): void
+    {
+        $additional_cost = 0;
+        $actions = [
+            'message' => 'provider_request_additional_cost equals $x %',
+            'variable' => [
+                '$x' => $additional_cost
+            ],
+            'options' => [
+                ['name' => 'accept', 'value' => '1'],
+                ['name' => 'reject', 'value' => '0'],
+            ]
+
+        ];
+
+    }
+
+    public function findById($messageid): Message
+    {
+        return Message::find($messageid);
+    }
+
+    public function geAvailableOrderConversationsListWithTheOtherMemberFor($member)
+    {
+        $orderIds = $member->orders()->availableForConversation()->pluck('id');
+        if (get_class($member) == User::class) {
+            $conversations = Conversation::with('lastMessage.media')->where('model_type', Order::class)
+                ->whereIn('model_id', $orderIds)
+                ->with(['providers.media'])->get();
+        } else {
+            $conversations = Conversation::with('lastMessage.media')->where('model_type', Order::class)
+                ->whereIn('model_id', $orderIds)
+                ->with(['users.media'])->get();
+        }
+
+        return $conversations;
+// Transform the structure
+        $conversations->transform(function ($conversation) {
+            $conversation->profile = $conversation->members->first()->user;
+            unset($conversation->members);
+            return $conversation;
+        });
+        return $conversations;
+
+//        return Conversation::where('model_type', Order::class)->whereHas('model', static function ($query) use ($member) {
+//            $query->whereBelongsTo($member)->availableForConversation();
+//        })->with(['members as profile' => static function ($query) use ($member) {
+//            $query->where('user_id', '!=', $member->id)->where('user_type', '!=', \get_class($member))->first();
+//        }])->get();
+    }
 }

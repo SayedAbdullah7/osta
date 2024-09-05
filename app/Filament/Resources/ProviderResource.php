@@ -4,7 +4,6 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProviderResource\Pages;
 use App\Filament\Resources\ProviderResource\RelationManagers;
-use App\Models\City;
 use App\Models\Provider;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,39 +12,18 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Forms\Get;
-use Filament\Forms\Components\Select;
-use Illuminate\Support\Collection;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Set;
-use Illuminate\Support\Str;
 
 class ProviderResource extends Resource
 {
     protected static ?string $model = Provider::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-
+//    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-s-briefcase';
+//heroicon-s-briefcase
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('country_id')
-                    ->relationship('country', 'name')
-                    ->required()
-                    ->live()
-                    ->afterStateUpdated(function (Get $get, Set $set, ?string $old, ?string $state) {
-                        if (($get('city_id') ?? '') !== Str::slug($old)) {
-                            $set('city_id', null);
-                        }
-                    }),
-                Forms\Components\Select::make('city_id')
-//                    ->relationship('city', 'name')
-                    ->options(fn (Get $get): Collection => City::query()
-                        ->where('country_id', $get('country_id'))
-                        ->pluck('name', 'id'))
-
-                    ->required(),
                 Forms\Components\TextInput::make('first_name')
                     ->required()
                     ->maxLength(15),
@@ -58,10 +36,24 @@ class ProviderResource extends Resource
                     ->maxLength(15),
                 Forms\Components\Toggle::make('is_phone_verified')
                     ->required(),
-                Forms\Components\TextInput::make('password')
-                    ->password()
-                    ->required()
+                Forms\Components\TextInput::make('email')
+                    ->email()
                     ->maxLength(255),
+//                Forms\Components\DateTimePicker::make('email_verified_at'),
+//                Forms\Components\Toggle::make('gender')
+//                    ->required(),
+                Forms\Components\Select::make('gender')
+                    ->options([
+                        true => 'Male',
+                        false => 'Female',
+                    ])
+                    ->required(),
+                Forms\Components\Select::make('country_id')
+                    ->relationship('country', 'name')
+                    ->required(),
+                Forms\Components\Select::make('city_id')
+                    ->relationship('city', 'name')
+                    ->required(),
             ]);
     }
 
@@ -69,12 +61,6 @@ class ProviderResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('country.name')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('city.name')
-                    ->numeric()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('first_name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('last_name')
@@ -82,7 +68,24 @@ class ProviderResource extends Resource
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable(),
                 Tables\Columns\IconColumn::make('is_phone_verified')
-                    ->boolean(),
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: false), // Make visible by default
+                Tables\Columns\TextColumn::make('email')
+                    ->searchable(),
+//                Tables\Columns\TextColumn::make('email_verified_at')
+//                    ->dateTime()
+//                    ->sortable(),
+//                Tables\Columns\IconColumn::make('gender')
+//                    ->boolean(),
+                Tables\Columns\TextColumn::make('gender')
+                    ->getStateUsing(fn($record) => self::getGenderDisplay($record->gender))
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('country.name')
+                    ->numeric()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('city.name')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -93,11 +96,57 @@ class ProviderResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\Filter::make('gender')
+                    ->form([
+                        Forms\Components\Select::make('gender')
+                            ->options([
+                                'Male' => 'Male',
+                                'Female' => 'Female',
+                            ])
+                            ->label('Gender'),
+                    ])->query(function (Builder $query, array $data) {
+                        if (isset($data['gender'])) {
+                            $gender = $data['gender'] === 'Male' ? true : false;
+                            $query->where('gender', $gender);
+                        }
+                    }),
+//                Tables\Filters\Filter::make('verified')
+//                    ->label('Phone Verified')
+//                    ->query(function (Builder $query, array $data) {
+//                        $query->where('is_phone_verified', true);
+//                    })->default(array('verified' => true)),
+//
+//                // Filter to show records where is_phone_verified is false
+//                Tables\Filters\Filter::make('not_verified')
+//                    ->label('Phone Not Verified')
+//                    ->query(function (Builder $query, array $data) {
+//                        $query->where('is_phone_verified', false);
+//                    }),
+                Tables\Filters\SelectFilter::make('is_phone_verified')
+                    ->options([
+                        '1' => 'Verified',
+                        '0' => 'Not Verified',
+                    ])->default('1')
+                ,
+//                Tables\Filters\SelectFilter::make('phone_verified')
+//                    ->label('Phone Verified')
+//                    ->options([
+//                        'verified' => 'Verified',
+//                        'not_verified' => 'Not Verified',
+//                    ])
+//                    ->default('verified')
+//                    ->query(function (Builder $query, $state) {
+//                        if ($state === 'verified') {
+//                            $query->where('is_phone_verified', true);
+//                        } elseif ($state === 'not_verified') {
+//                            $query->where('is_phone_verified', false);
+//                        }
+//                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -106,20 +155,15 @@ class ProviderResource extends Resource
             ]);
     }
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
-
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListProviders::route('/'),
-            'create' => Pages\CreateProvider::route('/create'),
-            'view' => Pages\ViewProvider::route('/{record}'),
-            'edit' => Pages\EditProvider::route('/{record}/edit'),
+            'index' => Pages\ManageProviders::route('/'),
         ];
+    }
+
+    private static function getGenderDisplay(bool $gender): string
+    {
+        return $gender ? 'Male' : 'Female';
     }
 }

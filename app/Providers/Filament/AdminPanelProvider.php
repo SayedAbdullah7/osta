@@ -50,10 +50,14 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                \Hasnayeen\Themes\Http\Middleware\SetTheme::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->authGuard('admin'); // this is the main addition
+            ->authGuard('admin')// this is the main addition
+            ->plugin(
+                \Hasnayeen\Themes\ThemesPlugin::make()
+            );
     }
 }

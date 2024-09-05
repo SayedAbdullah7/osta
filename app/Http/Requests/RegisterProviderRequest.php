@@ -24,7 +24,7 @@ class RegisterProviderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['email', 'max:255', Rule::unique('providers')->where(function ($query) {
+            'email' => ['nullable','email', 'max:255', Rule::unique('providers')->where(function ($query) {
                 return $query->where('is_phone_verified', 1); //use scope
             }),],
             'first_name' => 'required|string|max:15',

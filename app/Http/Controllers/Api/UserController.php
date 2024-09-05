@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Http\Resources\MediaResource;
 use App\Http\Resources\UserResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Location;
@@ -46,13 +47,16 @@ class UserController extends Controller
 
         // If the user does not exist, respond with a success message
         if (!$user) {
-            return $this->respondSuccess('complete register process');
+//            return $this->respondSuccess('complete register process');
+            return $this->respondSuccessWithData('complete register process',false );
         }
 
         // Generate an OTP for the user
         $otpService = new OTPService();
         $otpService->generateOTP($user);
-        return $this->respondSuccess('OTP send');
+//        return $this->respondSuccess('OTP send');
+//        return $this->respondSuccess('test');
+        return $this->respondSuccessWithData('OTP send',true );
     }
 
     /**
@@ -232,6 +236,24 @@ class UserController extends Controller
         });
 
         return $this->respondWithResource(new UserResource($updatedUser), 'Profile updated successfully');
+    }
+
+    public function banners()
+    {
+        // Directory where images are stored
+        $directory = public_path('app');
+
+        // Get all files in the directory
+        $files = array_diff(scandir($directory), ['.', '..']);
+
+        // Create URLs for each image
+        $imageUrls = array_map(function($file) use ($directory) {
+            return asset('app/' . $file);
+        }, $files);
+
+        // Wrap the URLs in MediaResource collection
+//        return MediaResource::collection($imageUrls);
+        return $this->respondWithResource(MediaResource::collection($imageUrls), 'banners');
     }
 
 }

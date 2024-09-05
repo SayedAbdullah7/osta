@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterProviderRequest;
 use App\Http\Requests\UpdateProviderRequest;
+use App\Http\Resources\MessageResource;
 use App\Http\Resources\ProviderResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
+use App\Models\Invoice;
+use App\Models\Order;
 use App\Models\Provider;
 use App\Services\OTPService;
 use Illuminate\Http\JsonResponse;
@@ -54,13 +58,16 @@ class ProviderController extends Controller
 
         // If the provider does not exist, respond with a success message
         if (!$provider) {
-            return $this->respondSuccess('complete register process');
+            return $this->respondSuccessWithData('complete register process',false );
+//            return $this->respondSuccess('complete register process');
         }
 
         // Generate an OTP for the provider
         $otpService = new OTPService();
         $otpService->generateOTP($provider);
-        return $this->respondSuccess('OTP send');
+        return $this->respondSuccessWithData('OTP send',true );
+//        return $this->respondSuccess('OTP send');
+
     }
 
     /**
@@ -277,6 +284,38 @@ class ProviderController extends Controller
         if ($provider->isDirty()) {
             $provider->save();
         }
+    }
+    // show statictes
+    public function home(): JsonResponse
+    {
+        return $this->apiResponse(
+            [
+                'success' => true,
+                'result' => [
+                    'total_completed_orders_today' => $this->getTotalCompletedOrdersToday(),
+                    // erring form orders
+                    'total_erring_form_completed_orders_today' => $this->getTotalErringFormOrdersCompletedToday(),
+
+                ],
+                'message' => ''
+            ], 200
+        );
+    }
+
+    private function getTotalCompletedOrdersToday()
+    {
+        return Order::where('provider_id', Auth::guard('provider')->user()->id)
+            ->where('status', OrderStatusEnum::DONE)
+            ->whereDate('created_at', today())
+            ->count();
+    }
+    private function getTotalErringFormOrdersCompletedToday()
+    {
+        return Invoice::whereHas('order', function ($q) {
+            $q->where('provider_id', Auth::guard('provider')->user()->id)
+                ->where('status', OrderStatusEnum::DONE)
+                ->whereDate('created_at', today());
+        })->sum('provider_earning');
     }
 
 }

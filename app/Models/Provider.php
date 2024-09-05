@@ -21,6 +21,11 @@ class Provider extends Authenticatable implements HasMedia,Wallet
     protected $guarded = [];
 
 
+    public function getGenderLabelAttribute(): string
+    {
+        return $this->gender ? 'Male' : 'Female';
+    }
+
     public function services(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Service::class,'provider_service');
@@ -83,4 +88,21 @@ class Provider extends Authenticatable implements HasMedia,Wallet
             get: fn () => $this->first_name,
         );
     }
+
+    public function reviewStatistics()
+    {
+        return $this->hasOne(ProviderReviewStatistics::class);
+    }
+
+    public function statistics(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProviderStatistic::class);
+    }
+
+    public function currentMonthStatistic(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProviderStatistic::class)
+            ->where('month', now()->startOfMonth());
+    }
+
 }

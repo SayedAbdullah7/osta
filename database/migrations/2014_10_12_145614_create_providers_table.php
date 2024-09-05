@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('last_name',15);
             $table->string('phone',15)->unique();
             $table->boolean('is_phone_verified')->default(0);
+            $table->boolean('is_approved')->default(0);
 //            $table->string('email')->unique()->nullable();
             $table->string('email')->nullable();
             $table->timestamp('email_verified_at')->nullable();

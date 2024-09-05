@@ -7,6 +7,12 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
+    protected $commands = [
+        \App\Console\Commands\MakeServiceClass::class,
+        \App\Console\Commands\MakeRepository::class,
+        \App\Console\Commands\MakeInterface::class,
+        \App\Console\Commands\MakeRepositoryAndService::class,
+    ];
     /**
      * Define the application's command schedule.
      */

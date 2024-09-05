@@ -1,10 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\User\DiscountCodeController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Traits\Helpers\ApiResponseTrait;
-
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -49,14 +48,24 @@ Route::middleware([])->group(function () {
             //order
             Route::post('order', [\App\Http\Controllers\Api\User\OrderController::class, 'store']);
             Route::get('order', [\App\Http\Controllers\Api\User\OrderController::class, 'getUserOrders']); // for user
+            Route::get('order/{order}', [\App\Http\Controllers\Api\User\OrderController::class, 'getUserOrder']); // show
 //            Route::get('order', [\App\Http\Controllers\Api\User\OrderController::class, 'user_orders_index']); // for user
 
-
-            Route::get('order/{order}/offer', [\App\Http\Controllers\Api\User\OfferController::class, 'index']); // my orders for providers
+            Route::get('offer', [\App\Http\Controllers\Api\User\OfferController::class, 'all']); // all offers
+            Route::get('order/{order}/offer', [\App\Http\Controllers\Api\User\OfferController::class, 'index']); // my orders for
 
             Route::get('offer/{orderId}', [\App\Http\Controllers\Api\User\OfferController::class, 'index']);
             Route::post('offer/{offerId}/accept', [\App\Http\Controllers\Api\User\OfferController::class, 'acceptOffer']);
             Route::post('offer/{offerId}/reject', [\App\Http\Controllers\Api\User\OfferController::class, 'rejectOffer']);
+
+            Route::post('/discount-codes/check-validity', [DiscountCodeController::class, 'checkValidity']);
+
+
+            Route::post('/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);
+            Route::get('/providers/{providerId}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'getProviderReviews']);
+
+            Route::get('banners', [\App\Http\Controllers\Api\UserController::class, 'banners']);
+
         });
 
     });
@@ -78,14 +87,17 @@ Route::middleware([])->group(function () {
 
         Route::post('verify', [\App\Http\Controllers\Api\ProviderController::class, 'verify']);
 
-        Route::middleware(['auth:provider'])->group(function () {
+        Route::middleware(['auth:provider','approved'])->group(function () {
 
             Route::get('profile', [\App\Http\Controllers\Api\ProviderController::class, 'profile']);
             Route::put('profile', [\App\Http\Controllers\Api\ProviderController::class, 'update']);
             Route::post('profile', [\App\Http\Controllers\Api\ProviderController::class, 'update']);
 
-
             Route::patch('reset-password', [\App\Http\Controllers\Api\ProviderController::class, 'resetPassword']);
+
+
+            Route::get('home', [\App\Http\Controllers\Api\ProviderController::class, 'home']);
+
             //order
             Route::get('order', [\App\Http\Controllers\Api\Provider\OrderController::class, 'getPendingOrders']); // for providers
 
@@ -101,7 +113,12 @@ Route::middleware([])->group(function () {
 
             Route::post('order/{orderId}/make-done/', [\App\Http\Controllers\Api\Provider\OrderController::class, 'updateOrderToDone']); // send offer for order
 //            Route::post('order/{orderId}/make-order-done/', [\App\Http\Controllers\Api\Provider\OrderController::class, 'updateOrderToDone']); // send offer for order
+            Route::get('/levels', [\App\Http\Controllers\Api\ProviderStatisticController::class, 'level_index']);
+
+            Route::get('banners', [\App\Http\Controllers\Api\UserController::class, 'banners']);
+
         });
+
 
 
         Route::get('/loin', function () {
@@ -112,7 +129,21 @@ Route::middleware([])->group(function () {
                 'error_code' => 1
             ], 401);
         })->name('login');
+
+        //routes for test
+        //aprove authed ptovider
+        Route::get('/approve', function () {
+            auth()->guard('provider')->user()->update(['is_approved' => true]);
+            return response()->json(['message' => 'done'], 200);
+        });
+        Route::get('disapprove', function () {
+            auth()->guard('provider')->user()->update(['is_approved' => false]);
+//            return     \App\Models\Provider::where('id', auth()->guard('provider')->user()->id)->update(['is_approved' => false]);
+            return response()->json(['message' => 'done'], 200);
+        });
     });
+    Route::get('space', [\App\Http\Controllers\Api\SpaceController::class, 'index']);
+
     Route::get('country', [\App\Http\Controllers\Api\CountryController::class, 'country_index']);
 
     Route::get('city', [\App\Http\Controllers\Api\CountryController::class, 'city_index']);
@@ -122,12 +153,15 @@ Route::middleware([])->group(function () {
     Route::get('sub_service', [\App\Http\Controllers\Api\ServiceController::class, 'sub_service_index']);
 
     //chat
-    Route::prefix('')->middleware(['auth:sanctum'])->group(function () {
+    Route::prefix('')->middleware(['auth:sanctum','approved'])->group(function () {
 //        Route::get('/wallet/balance', [WalletController::class, 'balance']);
 
         // write send-message route here
+        Route::get('inbox', [\App\Http\Controllers\Api\ConversationController::class, 'index']);
         Route::post('message', [\App\Http\Controllers\Api\MessageController::class, 'sendMessage'])->name('send.message');
         Route::get('message', [\App\Http\Controllers\Api\MessageController::class, 'index'])->name('get.message');
+        Route::post('message/request-action', [\App\Http\Controllers\Api\MessageController::class, 'makeAction'])->name('make.action');
+        Route::post('message/response-action', [\App\Http\Controllers\Api\MessageController::class, 'responseAction'])->name('response.action');
 
         Route::get('faq', [\App\Http\Controllers\Api\FaqController::class, 'index']);
         Route::get('faq-category', [\App\Http\Controllers\Api\FaqController::class, 'categories']);
@@ -135,16 +169,15 @@ Route::middleware([])->group(function () {
 
         Route::get('/wallet/', [WalletController::class, 'show']);
         Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
+        Route::get('/invoice/{orderId}', [\App\Http\Controllers\Api\InvoiceController::class, 'show']);
 
+        Route::post('/invoice/{orderId}/additional-cost', [\App\Http\Controllers\Api\InvoiceController::class, 'updateAdditionalCost']);
 
         Route::get('/ticket', [\App\Http\Controllers\Api\TicketController::class, 'index']);
         Route::post('/ticket', [\App\Http\Controllers\Api\TicketController::class, 'store']);
 
         Route::get('/ticket/{ticket}', [\App\Http\Controllers\Api\TicketController::class, 'show']);
         Route::post('/ticket/{ticket}/message', [\App\Http\Controllers\Api\TicketController::class, 'storeMessage']);
-
-
-
 
     });
 

@@ -32,8 +32,9 @@ class SendOfferRequest extends FormRequest
             };
         } else {
             $priceRules[] = function ($attribute, $value, $fail) use ($order) {
-                if ($order && $value > ($max = $order->max_allowed_price)) {
-                    $fail('The price must be less than or equal to ' . $max);
+                $maxAllowedPrice = $order->max_allowed_price ?? 0;
+                if ($maxAllowedPrice > 0  && $value > $maxAllowedPrice) {
+                    $fail('The price must be less than or equal to ' . $maxAllowedPrice);
                 }
             };
         }

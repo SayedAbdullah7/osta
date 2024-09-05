@@ -7,6 +7,7 @@ use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\HasMedia;
 
@@ -28,7 +29,12 @@ class Order extends Model implements HasMedia
     {
         return $this->belongsToMany(SubService::class)->withPivot('quantity');
     }
-
+    public function spaces()
+    {
+        return $this->belongsToMany(Space::class, 'order_sub_service')
+            ->withPivot('sub_service_id', 'quantity')
+            ->withTimestamps();
+    }
     public function service()
     {
         return $this->belongsTo(Service::class);
@@ -68,6 +74,10 @@ class Order extends Model implements HasMedia
     {
         $query->where('status', OrderStatusEnum::PENDING)->where('provider_id', null);
     }
+    public function scopeAvailableForConversation($query): void
+    {
+        $query->where('status', OrderStatusEnum::ACCEPTED);
+    }
 
     /**
      * Calculate the Haversine distance between two geographical coordinates.
@@ -96,16 +106,51 @@ class Order extends Model implements HasMedia
         return $this->status === OrderStatusEnum::PENDING;
     }
 
+    public function isDone()
+    {
+        return $this->status === OrderStatusEnum::DONE;
+    }
     public function maxAllowedOfferPrice(): float|int
     {
-        if ($this->subServices->count() > 0) {
-            $max = 0;
-            foreach ($this->subServices as $subService) {
-                $max += ($subService->pivot->quantity * $subService->max_price);
-            }
-            return $max;
+        // TODO: neeed more optimization
+
+        if ($this->subServices->isEmpty()) {
+            return INF;
         }
-        return INF;
+
+        $max = 0;
+
+        foreach ($this->subServices as $subService) {
+            $quantity = $subService->pivot->quantity;
+            $spaceMaxPrice = 0;
+            Log::info('subservice',[$quantity]);
+            // Check if space_id is set in the pivot data
+            if ($subService->pivot->space_id) {
+                // Find the max price for the space if it exists
+                $space = $subService->spaces
+                    ->where('id', $subService->pivot->space_id)
+                    ->first();
+
+                // Use the max_price from the space's pivot table if available
+                $spaceMaxPrice = $space?->pivot->max_price ?? 0;
+                Log::info('space',['subService'=>$subService, 'quantity'=>$quantity,'spaceMaxPrice'=>$spaceMaxPrice]);
+                $max += ($quantity * $spaceMaxPrice);
+
+            }else{
+                $max += ($quantity * $subService->max_price);
+            }
+
+        }
+
+        return $max;
+//        if ($this->subServices->count() > 0) {
+//            $max = 0;
+//            foreach ($this->subServices as $subService) {
+//                $max += ($subService->pivot->quantity * $subService->max_price);
+//            }
+//            return $max;
+//        }
+//        return INF;
     }
 
     public function conversation(): \Illuminate\Database\Eloquent\Relations\MorphOne
@@ -116,6 +161,17 @@ class Order extends Model implements HasMedia
     public function isPreview(): bool
     {
         return $this->price == 0 || $this->price == null;
+    }
+
+
+    public function invoice(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
+    public function scopeWithRelationsInProvider($query):mixed
+    {
+        return $query->with('location', 'subServices', 'service');
     }
 
 }

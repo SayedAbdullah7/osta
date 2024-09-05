@@ -143,6 +143,18 @@ trait ApiResponseTrait
     }
 
     /**
+     * Respond with success.
+     *
+     * @param string $message
+     *
+     * @return JsonResponse
+     */
+    protected function respondSuccessWithData(string $message = '', $data = []): JsonResponse
+    {
+        return $this->apiResponse(['success' => true, 'message' => $message,'result' => $data]);
+    }
+
+    /**
      * Respond with created.
      *
      * @param $data
@@ -211,7 +223,7 @@ trait ApiResponseTrait
      * @param bool|null $error_code
      * @return JsonResponse
      */
-    protected function respondError($message, int $statusCode = 400, Exception $exception = null, int $error_code = 1)
+    protected function respondError($message, int $statusCode = 400, Exception $exception = null, int $error_code = 1): JsonResponse
     {
 
         return $this->apiResponse(

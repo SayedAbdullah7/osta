@@ -19,7 +19,8 @@ class OTPService
      */
     public function generateOTP($user, int $expirationMinutes = 5): ?string
     {
-        if ($this->isLastOTPGeneratedWithinMinutes($user, 2) || $this->isOTPCountExceededLastHour($user, 3)) {
+        if (false) {
+//        if ($this->isLastOTPGeneratedWithinMinutes($user, 2) || $this->isOTPCountExceededLastHour($user, 3)) {
 //            return null; // Return null to indicate that a new OTP cannot be generated yet
             // reutne error user can't generate otp
 //            throw ValidationException::withMessages([

@@ -21,7 +21,12 @@ class OfferController extends Controller
     {
         $this->userOfferService = $userOfferService;
     }
-
+    public function all()
+    {
+//        $user = auth()->user();
+        $user = request()->user();
+        return $this->userOfferService->getOffers($user);
+    }
     public function index($orderId)
     {
 //        $user = auth()->user();

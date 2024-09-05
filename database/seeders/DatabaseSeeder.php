@@ -17,11 +17,9 @@ class DatabaseSeeder extends Seeder
             CitySeeder::class,
             ServiceSeeder::class,
             SubServiceSeeder::class,
-            FaqCategorySeeder::class,
-            FaqSeeder::class,
-            PrivacyPolicySeeder::class,
-            SpacesTableSeeder::class,
             SpaceServiceTableSeeder::class,
+            LevelSeeder::class,
+            ProviderStatisticSeeder::class
         ]);
         // \App\Models\User::factory(10)->create();
 

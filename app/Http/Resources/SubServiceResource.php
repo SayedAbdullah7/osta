@@ -22,6 +22,7 @@ class SubServiceResource extends JsonResource
             'max_price' => $this->max_price,
             'type' => $this->type,
             'service' => new ServiceResource($this->whenLoaded('service')),
+            'spaces' => SpaceResource::collection($this->whenLoaded('spaces')),
         ];
         if ($this->pivot) {
             $data += [

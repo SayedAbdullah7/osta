@@ -103,5 +103,8 @@ class User extends Authenticatable implements Wallet,HasMedia
 //            get: fn (string $value) => 'a'),
 //        );
 //    }
-
+    public function conversations()
+    {
+        return $this->morphToMany(Conversation::class, 'user', 'conversation_members');
+    }
 }

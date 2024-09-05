@@ -21,7 +21,6 @@ return new class extends Migration
             $table->boolean('is_second')->default(false);
             $table->string('latitude',15)->nullable();
             $table->string('longitude',15)->nullable();
-            $table->float('distance',6,2)->nullable();
             $table->foreignIdFor(\App\Models\Provider::class)->constrained()->restrictOnDelete()->cascadeOnUpdate();
             $table->foreignIdFor(\App\Models\Order::class)->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->timestamps();

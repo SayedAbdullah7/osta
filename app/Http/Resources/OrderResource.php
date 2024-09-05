@@ -16,6 +16,7 @@ class OrderResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+
         return [
             'id' => $this->id,
             'start' => $this->start,
@@ -37,9 +38,15 @@ class OrderResource extends JsonResource
             'images' => $this->getMedia('images')->map(function (Media $media) {
                 return $media->getFullUrl();
             }),
+            'voice_desc' => $this->getFirstMediaUrl('voice_desc'),
+
             'total_pending_offers' => $this->whenCounted('offers_count'),
             'distance'=> $this->distance,
-//            ' => $this->whenCounted('orders_count'),
+            'offers' => OfferResource::collection($this->whenLoaded('offers')),
+            'is_there_more' => $this->when(
+                $this->offers_count !== null,
+                $this->offers_count > 2
+            ),//            ' => $this->whenCounted('orders_count'),
 //            'images2' => $this->getMediaUrls('images'),
         ];
     }

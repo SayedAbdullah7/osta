@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\OfferStatusEnum;
 use App\Enums\OrderCategoryEnum;
 use App\Enums\OrderStatusEnum;
 use App\Models\Location;
@@ -28,12 +29,22 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function getOrdersForUser(User $user): Collection
     {
-        return $user->orders()->withCount('offers')->with(['service','subServices'])->get();
+        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
+            $q->pending()->latest('id')->take(2);
+        },'offers.provider'])->get();
     }
+
     public function getOrdersForUserWithStatusIn(mixed $user, array $statuses)
     {
-        return $user->orders()->withCount('offers')->with(['service','subServices'])->whereIn('status', $statuses)->get();
+        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
+            $q->pending()->latest('id')->take(2);
+        },'offers.provider'])->whereIn('status', $statuses)->get();
     }
+    public function getOrderForUserById(int $id,User $user): Order|null
+    {
+        return $user->orders()->where('id',$id)->withCount('offers')->with(['service', 'subServices', 'offers.provider'])->first();
+    }
+
     public function find(int $id)
     {
         return Order::find($id);
@@ -66,18 +77,26 @@ class OrderRepository implements OrderRepositoryInterface
         $providerLongitude = $params['longitude'] ?? null;
         $providerLatitude = $params['latitude'] ?? null;
         $serviceIds = $params['service_id'] ?? null;
+        $page = $params['page'] ?? 1;
+//        $ids = $params['ids'] ?? [];
+        $ids = array_filter($params['ids'] ?? [], static fn($value) => $value !== null);
 
         $providerServiceIds = $provider->services()->when($serviceIds, function ($query) use ($serviceIds) {
             $query->whereIn('services.id', $serviceIds);
         })->pluck('services.id')->toArray();
 
-        $query = Order::with('location','subServices','service')->pending()->whereIn('service_id', $providerServiceIds)->whereDoesntHave('cancellationProviders', function ($query) use ($providerId) {
+        $query = Order::withRelationsInProvider()->pending()->whereIn('service_id', $providerServiceIds)->whereDoesntHave('cancellationProviders', function ($query) use ($providerId) {
             $query->where('provider_id', $providerId);
+        })->whereDoesntHave('offers', static function ($query) use ($providerId) {
+            $query->where('provider_id', $providerId)->where('status', OrderStatusEnum::PENDING);
+        })->when(!empty($ids), static function ($query) use ($ids) {
+            $query->whereIn('id', $ids);
         });
         $query = $this->applyOrderBy($query, $sortBy, $sortDesc, $providerLatitude, $providerLongitude);
 
-        return $query->simplePaginate($perPage);
+        return $query->simplePaginate($perPage, ['*'], 'page', $page);
     }
+
     /**
      * Apply custom ordering based on user input.
      *
@@ -128,25 +147,25 @@ class OrderRepository implements OrderRepositoryInterface
 //        });
 //    }
 
-    public function isAvailableToBeRemovedByProvider (Order $order): bool
+    public function isAvailableToBeRemovedByProvider(Order $order): bool
     {
         return !$order->provider_id && $order->status === OrderStatusEnum::PENDING;
     }
 
-    public function isOrderAvailableToBeComingByProvider(Order $order,Provider $provider): bool
+    public function isOrderAvailableToBeComingByProvider(Order $order, Provider $provider): bool
     {
-        return $order->status === OrderStatusEnum::ACCEPTED && $this->isOrderBelongToProvider($order,$provider);
+        return $order->status === OrderStatusEnum::ACCEPTED && $this->isOrderBelongToProvider($order, $provider);
     }
 
-    public function isOrderAvailableToBeAlmostDoneByProvider(Order $order,Provider $provider): bool
+    public function isOrderAvailableToBeAlmostDoneByProvider(Order $order, Provider $provider): bool
     {
-        return $order->status === OrderStatusEnum::COMING && $this->isOrderBelongToProvider($order,$provider);
+        return $order->status === OrderStatusEnum::COMING && $this->isOrderBelongToProvider($order, $provider);
     }
 
-    public function isOrderAvailableToBeDoneByProvider(Order $order,Provider $provider): bool
+    public function isOrderAvailableToBeDoneByProvider(Order $order, Provider $provider): bool
     {
 
-        return $this->isOrderBelongToProvider($order,$provider);
+        return $this->isOrderBelongToProvider($order, $provider);
 //        return $order->status === OrderStatusEnum::ALMOST_DONE && $this->isOrderBelongToProvider($order,$provider);
     }
 
@@ -169,7 +188,7 @@ class OrderRepository implements OrderRepositoryInterface
         return $order;
     }
 
-    public function isOrderBelongToProvider(Order $order,Provider $provider): bool
+    public function isOrderBelongToProvider(Order $order, Provider $provider): bool
     {
         return $order->provider_id === $provider->id;
     }
@@ -195,16 +214,16 @@ class OrderRepository implements OrderRepositoryInterface
         return false;
     }
 
-    public function updateOrderStatus(int $orderId, int $providerId, string $status): bool
-    {
-        $order = Order::where('id', $orderId)->where('provider_id', $providerId)->first();
-        if ($order) {
-            $order->status = $status;
-            $order->save();
-            return true;
+        public function updateOrderStatus(int $orderId, int $providerId, string $status): bool
+        {
+            $order = Order::where('id', $orderId)->where('provider_id', $providerId)->first();
+            if ($order) {
+                $order->status = $status;
+                $order->save();
+                return true;
+            }
+            return false;
         }
-        return false;
-    }
 
 
     // Implement the logic to get orders for a user
@@ -218,15 +237,15 @@ class OrderRepository implements OrderRepositoryInterface
     public function createOrderBeLongToUser(array $data, User $user): Order
     {
         $order = new Order;
-        $order->start = $data['start']??null;
-        $order->end = $data['end']??null;
+        $order->start = $data['start'] ?? null;
+        $order->end = $data['end'] ?? null;
         $order->category = $data['category'];
-        $order->space = $data['space']??null;
-        $order->unknown_problem = $data['unknown_problem']??false;
+//        $order->space = $data['space']??null;
+        $order->unknown_problem = $data['unknown_problem'] ?? false;
         if ($data['category'] != OrderCategoryEnum::Other->value) {
             $order->warranty_id = $data['warranty_id'] ?? null;
         }
-        $order->desc = $data['desc']??null;
+        $order->desc = $data['desc'] ?? null;
         $order->service_id = $data['service_id'];
         //$order->provider_id = $data['provider_id'];
 //        $order->location_id = $data['location_id']??null;
@@ -246,12 +265,18 @@ class OrderRepository implements OrderRepositoryInterface
         return $order;
     }
 
-    public function attachImagesToOrder(array $data, Order $order): Order
+    public function attachImagesToOrder(array $data, Order $order): void
     {
         foreach ($data as $image) {
-            $media = $order->addMedia($image)->toMediaCollection('images'); // Adjust the collection name as needed
+            $order->addMedia($image)->toMediaCollection('images'); // Adjust the collection name as needed
         }
-        return $order;
+//        return $order;
+    }
+
+    public function attachVoiceToOrder($file, Order $order)
+    {
+        $order->addMedia($file)
+            ->toMediaCollection('voice_desc');
     }
 
     public function setMaxPriceForOrder(Order $order): Order
@@ -325,11 +350,15 @@ class OrderRepository implements OrderRepositoryInterface
         }
     }
 
-    public function getLocationById( $location_id)
+    public function getLocationById($location_id)
     {
         return Location::find($location_id);
     }
-
-
+    public function findOrderByIdAndUserId(int $orderId, int $userId): ?Order
+    {
+        return Order::where('id', $orderId)
+            ->where('user_id', $userId)
+            ->first();
+    }
 
 }

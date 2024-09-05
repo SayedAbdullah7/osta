@@ -21,6 +21,7 @@ class ProviderResource extends JsonResource
             'phone' => $this->phone,
             'email' => $this->email,
             'is_phone_verified' => (bool)$this->is_phone_verified,
+            'is_approved' => (bool)$this->is_approved,
 //            'country_id' => $this->country_id,
 //            'city_id' => $this->city_id,
             'country' => new CountryResource($this->country),
@@ -37,7 +38,7 @@ class ProviderResource extends JsonResource
             'certificate_media_url' => $this->getFirstMediaUrl('certificate'),
             'token' => $this->token,
             'total_completed_orders' => $this->whenCounted('orders_count'),
-
+            'review_statistics' => new ProviderReviewStatisticsResource($this->whenLoaded('reviewStatistics')),
         ];
     }
 }

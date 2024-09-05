@@ -75,6 +75,13 @@ class StoreOrderRequest extends FormRequest
 //            'sub_services.*.sub_services_ids' => 'required|exists:sub_services,id',
 //            'sub_services.*.sub_service_quantities' => 'required|integer|min:1',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+//            'voice_desc' => 'file|mimes:audio/mpeg,audio/wav,audio/mp3|max:10240', // 10MB Max
+            'voice_desc' => [
+                'file',              // Validates that the input is a file
+//                'mimes:mp3,wav,ogg,aac',// Specifies allowed file types
+                'max:5120',         // Maximum file size in kilobytes (50 MB)
+            ],
+
         ];
 
     }

@@ -21,4 +21,6 @@ class ConversationMember extends Model
         return $this->morphTo();
     }
 
+
+
 }

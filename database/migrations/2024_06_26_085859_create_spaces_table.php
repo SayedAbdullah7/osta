@@ -12,9 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('spaces', static function (Blueprint $table) {
-            $table->id();
-            $table->string('name',20);
-            $table->timestamps();
+            $table->unsignedBigInteger('space_id');
+            $table->unsignedBigInteger('service_id');
+            $table->decimal('max_price', 10, 2);
+
+            $table->foreign('space_id')->references('id')->on('spaces')->onDelete('cascade');
+            $table->foreign('service_id')->references('id')->on('services')->onDelete('cascade');
+
+            $table->primary(['space_id', 'service_id']);
         });
     }
 

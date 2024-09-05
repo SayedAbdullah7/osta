@@ -78,7 +78,10 @@ class UserOfferService
 
     public function getOffers($user): \Illuminate\Http\JsonResponse
     {
-        $offers = $user->orders()->pending()->where('offers.status', OrderStatusEnum::PENDING)->get();
+        $offers = Offer::whereHas('order', function ($query) use ($user) {
+            $query->where('user_id', $user->id)->pending();
+        })->get();
+//        $offers = $user->orders()->pending()->where('offers.status', OrderStatusEnum::PENDING)->get();
 
         return $this->respondWithResource(OfferResource::collection($offers));
     }
@@ -107,17 +110,20 @@ class UserOfferService
 
         DB::transaction(function () use ($offer) {
             $offer->status = OfferStatusEnum::ACCEPTED;
+            $offer->deleted_at = null;
             $offer->save();
 
             // Delete other pending offers for the same order
-            Offer::where('order_id', $offer->order_id)
-                ->where('id', '!=', $offer->id)
-                ->delete();
+            $this->deleteOtherOffersForOrder($offer->order_id,$offer->id);
+//            Offer::where('order_id', $offer->order_id)
+//                ->where('id', '!=', $offer->id)
+//                ->delete();
 
             // Delete other pending offers from the same provider in any order
-            Offer::where('provider_id', $offer->provider_id)
-                ->where('id', '!=', $offer->id)
-                ->delete();
+            $this->deleteOtherOffersForProvider($offer->provider_id, $offer->id);
+//            Offer::where('provider_id', $offer->provider_id)
+//                ->where('id', '!=', $offer->id)
+//                ->delete();
 
 
             // upate order to acccepted
@@ -127,12 +133,43 @@ class UserOfferService
             $membersModels = [$offer->provider, $order->user];
             $this->messageService->createConversationForModel($order,$membersModels, 'Order accepted, number #' . $order->id);
 
-            //chat start
-
-
         });
         return $this->respondSuccess('Offer accepted successfully');
     }
+
+    private function deleteOtherOffersForOrder($orderId, $offerId): void
+    {
+        $offerIds = Offer::where('order_id', $orderId)
+            ->where('id', '!=', $offerId)
+            ->pluck('id')
+            ->toArray();
+
+        $this->deleteOffersRealTime($offerIds);
+    }
+    private function deleteOtherOffersForProvider($providerId, $offerId): void
+    {
+//        Offer::where('provider_id', $offer->provider_id)
+//                ->where('id', '!=', $offer->id)
+//                ->delete();
+        $offerIds = Offer::where('provider_id', $providerId)
+            ->where('id', '!=', $offerId)->where('status', OfferStatusEnum::PENDING)
+            ->pluck('id')
+            ->toArray();
+
+        $this->deleteOffersRealTime($offerIds);
+    }
+
+    public function deleteOffersRealTime($offerIds)
+    {
+        Offer::whereIn('id', $offerIds)->delete();
+
+        $data = [];
+        $msg = '';
+        $event = 'delete';
+        $socketService = new SocketService();
+        $socketService->push('offers', $data, $offerIds, $event, $msg);
+    }
+
 
     // upate order to acccepted
     private function updateOrderToAccepted($order, $providerId, $price): Order
@@ -141,6 +178,10 @@ class UserOfferService
         $order->provider_id = $providerId;
         $order->price = $price;
         $order->save();
+        $walletService = new WalletService();
+        $walletService->createInvoice($order);
+        $socketService = new SocketService();
+        $socketService->push('orders', [], [$order->id], 'update', '');
         return $order;
     }
 

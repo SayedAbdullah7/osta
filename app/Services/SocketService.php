@@ -11,7 +11,7 @@ class SocketService
     private const ROOM_PREFIX = '.users.';
     private string $socketUrl;
 
-    public function __construct()
+    public function     __construct()
     {
         $this->socketUrl = env('HTTP_SOCKET');
     }

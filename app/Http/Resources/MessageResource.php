@@ -35,6 +35,14 @@ class MessageResource extends JsonResource
                     'thumb' => $media->getUrl('thumb'),
                 ];
             }),
+//            'options' => $this->options
+            'options' => [
+                'variables' => $this->options['variables'] ?? null,
+                'options' => $this->options['options'] ?? null,
+                'url' => $this->options['url'] ?? null,
+                'action_name' => $this->options['action_name'] ?? null,
+                'action_status' => (string)($this->options['action_status'] ?? ''),
+            ],
         ];
     }
 }
