@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderCategoryEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProviderResource;
 use App\Http\Resources\ServiceResource;
@@ -10,53 +11,83 @@ use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Service;
 use App\Models\SubService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ServiceController extends Controller
 {
     use ApiResponseTrait;
+
     /**
      * Display a listing of the resource.
      */
     public function service_index()
     {
-        return $this->respondWithResource(ServiceResource::collection(Service::all()),'');
+        $response = Cache::rememberForever('services', function () {
+//            return Service::all();
+            return $this->respondWithResource(ServiceResource::collection(Service::all()), '');
+
+        });
+        return $response;
     }
+
     public function sub_service_index()
     {
         $service_id = request()->get('service_id');
         $group_by_type = request()->get('group_by_type');
+        // Cache key based on service_id and grouping requirement
+        $cacheKey = "sub_services_{$service_id}_" . ($group_by_type ? 'grouped' : 'ungrouped');
 
-        // Fetch the sub-services with the related spaces and apply filtering if service_id is provided
-        $subServices = SubService::with('spaces')
-            ->when($service_id, fn($query) => $query->where('service_id', $service_id))
-            ->get();
+        // Attempt to retrieve data from cache
+        $response = Cache::remember($cacheKey, 60, function () use ($service_id, $group_by_type) {
+            // Fetch the sub-services with the related spaces and apply filtering if service_id is provided
+            $service = Service::find($service_id);
+            $loadSpaces = false;
+            if ($service && in_array($service->category, [OrderCategoryEnum::SpaceBased->value, OrderCategoryEnum::Other->value], true)) {
+                $loadSpaces = true;
+            }
+            $subServices = SubService::with(['spaces' => function ($query) use ($loadSpaces) {
+                if ($loadSpaces) {
+                    $query->get();
+                } else {
+//                $query->get();
+                    $query->whereRaw('1 = 0');
+                }
+            }])
+                ->when($service_id, fn($query) => $query->where('service_id', $service_id))->when($loadSpaces, fn($query) => $query->has('spaces'))
+                ->get();
 
-        // If grouping by type is requested, group the sub-services
-        if ($group_by_type) {
-            $groupedSubServices = $subServices->groupBy('type');
+//        if ($service && in_array($service->category, [OrderCategoryEnum::SpaceBased, OrderCategoryEnum::Other], true)) {
+//
+//        }
 
-            return $this->apiResponse([
-                'success' => true,
-                'result' => [
-                    'new' => SubServiceResource::collection($groupedSubServices->get('new', collect())),
-                    'fix' => SubServiceResource::collection($groupedSubServices->get('fix', collect())),
-                ],
-                'message' => 'Sub Services fetched successfully',
-            ], 200);
-        }
+            // If grouping by type is requested, group the sub-services
+            if ($group_by_type) {
+                $groupedSubServices = $subServices->groupBy('type');
 
-        // Return the sub-services as a resource collection
-        return $this->respondWithResource(
-            SubServiceResource::collection($subServices),
-            'Sub Services fetched successfully',
-            200
-        );
+                return $this->apiResponse([
+                    'success' => true,
+                    'result' => [
+                        'new' => SubServiceResource::collection($groupedSubServices->get('new', collect())),
+                        'fix' => SubServiceResource::collection($groupedSubServices->get('fix', collect())),
+                    ],
+                    'message' => 'Sub Services fetched successfully',
+                ], 200);
+            }
+            // Return the sub-services as a resource collection
+            return $this->respondWithResource(
+                SubServiceResource::collection($subServices),
+                'Sub Services fetched successfully',
+                200
+            );
+        });
+        return $response;
+
         $service_id = request()->service_id;
         $subServices = SubService::with('spaces')->when($service_id, function ($query, $service_id) {
             $query->where('service_id', $service_id);
         })->get();
 
-        if(request()->group_by_type){
+        if (request()->group_by_type) {
             $subServices = collect(['new' => collect(), 'fix' => collect()])->merge($subServices->groupBy('type'));
 
             return $this->apiResponse(
@@ -71,6 +102,7 @@ class ServiceController extends Controller
 //        return $subServices;
         return $this->respondWithResource(SubServiceResource::collection($subServices), '', 200);
     }
+
     /**
      * Show the form for creating a new resource.
      */

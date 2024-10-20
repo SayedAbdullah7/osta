@@ -73,11 +73,12 @@ class MessageController extends Controller
         }
         [$messages, $conversation] = $this->messageService->getMessagesWithConversation($perPage, $page, $request->conversation_id, $request->order_id);
 
+        return $this->respondWithResourceCollection(MessageResource::collection($messages), '');
         return $this->apiResponse(
             [
                 'success' => true,
                 'result' => [
-                    'messages' => MessageResource::collection($messages),
+                    'messages' => MessageResource::collection($messages)->response()->getData(),
                     'conversation' => $conversation,
                     'participant' => $participantName??null,
                 ],
@@ -179,10 +180,10 @@ class MessageController extends Controller
     public function makeAction(Request $request): \Illuminate\Http\JsonResponse
     {
         $this->validate($request, [
-            'conversation_id' => 'required|exists:conversations,id',
-//            'order_id' => 'required|exists:orders,id',
-            'action' => 'required|in:additional_cost',
-            'action_value' => 'required',
+            'conversation_id' => 'required_without:order_id|exists:conversations,id',
+            'order_id' => 'required_without:conversation_id|exists:orders,id',
+            'action' => 'required|in:additional_cost,pay,cash_payment',
+//            'action_value' => 'required',
         ]);
         $message= $this->messageService->makeAction($request->conversation_id, $request->order_id, $request->input('action'),$request->input('action_value'));
         return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
@@ -295,7 +296,7 @@ class MessageController extends Controller
     {
         if (!$conversationId) {
             $order = Order::find($orderId);
-            $conversation = $order->conversation;
+            $conversation = $order?->conversation;
         }else {
             $conversation = Conversation::find($conversationId);
         }

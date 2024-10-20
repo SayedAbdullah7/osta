@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,7 +28,9 @@ class ConverstionResource extends JsonResource
             'last_message' => $this->whenLoaded('lastMessage', function () {
                 return new MessageResource($this->lastMessage);
             }),
-            'user_short_info' => $this->whenLoaded('users', function () {
+
+            'user' => $this->whenLoaded('users', function () {
+                return new UserResource($this->users->first());
                 return $this->users->map(function ($user) {
                     return [
                         'id' => $user->id,
@@ -37,7 +40,8 @@ class ConverstionResource extends JsonResource
                     ];
                 });
             }),
-            'provider_short' => $this->whenLoaded('providers', function () {
+            'provider' => $this->whenLoaded('providers', function () {
+                return new ProviderResource($this->providers->first());
                 return $this->providers->map(function ($provider) {
                     return [
                         'id' => $provider->id,
@@ -47,7 +51,12 @@ class ConverstionResource extends JsonResource
                     ];
                 });
             }),
-            // Add any additional fields or relationships you want to include
+            'order' => $this->whenLoaded('model', function () {
+                if($this->model_type == Order::class){
+                    return new OrderResource($this->model);
+                }
+            }),
+                // Add any additional fields or relationships you want to include
         ];
     }
 }

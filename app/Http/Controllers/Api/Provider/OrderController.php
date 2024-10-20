@@ -61,8 +61,15 @@ class OrderController extends Controller
     {
         $provider = $request->user();
 
-        $orders = $this->orderRepository->getProviderOrders($provider);
-
+//        $orders = $this->orderRepository->getOrdersForProvider($provider);
+        $provider = request()->user();
+        $status = request()->status;
+        if ($status) {
+            $statuses = [$status];
+            $orders = $this->orderRepository->getOrdersForProviderWithStatusIn($provider, $statuses);
+        } else {
+            $orders= $this->orderRepository->getOrdersForProvider($provider);
+        }
         return $this->respondWithResourceCollection(OrderResource::collection($orders), '');
     }
 

@@ -15,7 +15,8 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('provider_id')->constrained()->onDelete('cascade');
                 $table->integer('total_reviews')->default(0);
-                $table->decimal('average_rating', 3, 2)->default(0.00);
+                $table->float('average_rating', 3, 2)->default(0.00);
+                $table->integer('completed_orders')->unsigned()->default(0);
                 $table->timestamps();
             });
     }

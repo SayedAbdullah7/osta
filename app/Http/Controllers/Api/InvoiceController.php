@@ -85,7 +85,7 @@ class InvoiceController extends Controller
         }
         $order->price = $order->price + $additionalCost;
         $order->save();
-        $walletService = new WalletService();
+        $walletService = app(WalletService::class);
         $walletService->updateInvoiceAdditionalCost($invoice, $order);
         return $this->respondSuccess()->additional([
             'data' => new InvoiceResource($invoice),

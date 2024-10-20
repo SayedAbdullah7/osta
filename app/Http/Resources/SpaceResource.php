@@ -14,6 +14,19 @@ class SpaceResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+//            'sub_service_id' => $this->whenLoaded('pivot', $this->pivot->sub_service_id),
+//            'space_id' => $this->whenLoaded('pivot', $this->pivot->space_id),
+            'max_price' => $this->whenLoaded('pivot', $this->pivot->max_price),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+//            'pivot' => [
+//                'sub_service_id' => $this->pivot->sub_service_id,
+//                'space_id' => $this->pivot->space_id,
+//                'max_price' => $this->pivot->max_price,
+//            ],
+        ];
     }
 }

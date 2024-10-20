@@ -4,6 +4,10 @@
 namespace App\Services;
 
 
+use App\Http\Resources\OfferResource;
+use App\Http\Resources\OrderResource;
+use App\Models\Offer;
+use App\Models\Order;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,15 +46,15 @@ class ProviderOrderService
     public function updateOrderToDone(Request $request, $orderId, $provider): ?array
     {
         $order = $this->orderRepository->find($orderId);
-
+        $providerId = $provider->id;
         if (!$order || !$this->orderRepository->isOrderAvailableToBeDoneByProvider($order, $provider)) {
             return null;
         }
 
         if ($request->payment_method == 'cash') {
-            $payResponse = (new \App\Services\WalletService())->payCash($order);
+            $payResponse = app(WalletService::class)->payCash($order);
         } elseif ($request->payment_method == 'wallet') {
-            $payResponse = (new \App\Services\WalletService())->payByWallet($order);
+            $payResponse = app(WalletService::class)->payByWallet($order);
         }
 
         if (!$payResponse['status']) {
@@ -59,8 +63,21 @@ class ProviderOrderService
 
         $this->orderRepository->updateOrderToDone($order);
         $this->providerStatisticsService->handleOrderCompletion($providerId);
+//        $this->
+        $this->pushToSocket($order);
+
 
         return ['status' => true, 'message' => 'Order done successfully'];
+    }
+    public function pushToSocket(Order $order): void
+    {
+        $socketService = new SocketService();
+        $data = new OrderResource($order);
+        $event = 'order_done';
+        $msg = "Order done with id {$order->id}";
+        $user_id = $order->user_id;
+        $socketService->push('user',$data,[$user_id], $event, $msg);
+        $socketService->push('provider',$data,[$order->provider_id], $event, $msg);
     }
 
     public function updateOrderPrice($order, $newPrice)
@@ -68,7 +85,7 @@ class ProviderOrderService
 //        $order = $this->orderRepository->find($orderId);
         return DB::transaction(function () use ($order, $newPrice) {
             $order->price = $newPrice;
-            $walletService = new WalletService();
+            $walletService = app(WalletService::class);
             $invoice = $order->invoice;
             if (!$invoice) {
                 $walletService->createInvoice($order);

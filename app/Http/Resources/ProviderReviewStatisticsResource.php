@@ -16,7 +16,8 @@ class ProviderReviewStatisticsResource extends JsonResource
     {
         return [
             'total_reviews' => $this->total_reviews,
-            'average_rating' => $this->average_rating,
+            'average_rating' => (string)$this->average_rating,
+            'completed_orders' => $this->completed_orders
         ];
     }
 }

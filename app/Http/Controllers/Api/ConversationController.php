@@ -24,8 +24,11 @@ class ConversationController extends Controller
      */
     public function index()
     {
-        $conversations = $this->messageService->geAvailableOrderConversationsListWithTheOtherMember();
-        return ConverstionResource::collection($conversations);
+        $page = request()->input('page', 1);
+        $perPage = request()->input('per_page', 10);
+         $conversations = $this->messageService->geAvailableOrderConversationsListWithTheOtherMember($page,$perPage);
+//        $conversationsResource = ConverstionResource::collection($conversations);
+        return $this->respondWithResourceCollection(ConverstionResource::collection($conversations));
     }
 
     /**

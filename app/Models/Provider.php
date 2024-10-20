@@ -91,7 +91,16 @@ class Provider extends Authenticatable implements HasMedia,Wallet
 
     public function reviewStatistics()
     {
-        return $this->hasOne(ProviderReviewStatistics::class);
+        return $this->hasOne(ProviderReviewStatistics::class)->withDefault([
+            'total_reviews' => 0,
+            'average_rating' => 0.00,
+            'completed_orders'=>0
+        ]);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
     }
 
     public function statistics(): \Illuminate\Database\Eloquent\Relations\HasMany
@@ -103,6 +112,23 @@ class Provider extends Authenticatable implements HasMedia,Wallet
     {
         return $this->hasOne(ProviderStatistic::class)
             ->where('month', now()->startOfMonth());
+    }
+
+    public function subscriptions()
+    {
+        return $this->belongsToMany(Subscription::class, 'provider_subscription')
+            ->withPivot('start_date', 'end_date')
+            ->withTimestamps();
+    }
+
+    public function providerSubscriptions()
+    {
+        return $this->hasMany(ProviderSubscription::class);
+    }
+
+    public function location()
+    {
+        return $this->hasOne(ProviderLocation::class);
     }
 
 }

@@ -19,7 +19,9 @@ class DatabaseSeeder extends Seeder
             SubServiceSeeder::class,
             SpaceServiceTableSeeder::class,
             LevelSeeder::class,
-            ProviderStatisticSeeder::class
+            ProviderStatisticSeeder::class,
+            SubscriptionSeeder::class,
+            WarrantySeeder::class
         ]);
         // \App\Models\User::factory(10)->create();
 

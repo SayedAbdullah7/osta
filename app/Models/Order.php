@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderStatusEnum;
+use Carbon\Carbon;
 use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,11 +11,20 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\HasMedia;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Scope;
 
 class Order extends Model implements HasMedia
 {
     use HasFactory;
     use InteractsWithMedia;
+//    protected static function booted()
+//    {
+//        $timeInHours = 24*7;
+////        static::addGlobalScope('recent', function (Builder $builder) {
+////            $builder->where('created_at', '>=', now()->subHours(48));
+////        });
+//    }
 
     /**
      * The attributes that should be cast.
@@ -25,32 +35,63 @@ class Order extends Model implements HasMedia
         'status' => OrderStatusEnum::class,
     ];
 
+    // Static property to control the duration (default 24 hours)
+    public static $recentDurationHours = 24*15;
+
+    // Static property to control whether the global scope is applied
+    public static $applyRecentScope = true;
+
+    protected static function booted()
+    {
+        // Apply the global scope within the booted method
+        static::addGlobalScope('recentOrders', function ($builder) {
+            if (static::$applyRecentScope) {
+                // Use the static property for dynamic hours condition
+                $builder->where('created_at', '>=', Carbon::now()->subHours(static::$recentDurationHours));
+            }
+        });
+    }
+
+    // Optional method to disable the global scope
+    public static function withoutRecentScope()
+    {
+        static::$applyRecentScope = false;
+        return new static;
+    }
+
+
     public function subServices()
     {
-        return $this->belongsToMany(SubService::class)->withPivot('quantity');
+        return $this->belongsToMany(SubService::class)->withPivot('quantity','space_id');
     }
+
+    public function orderSubServices(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderSubService::class);
+    }
+
     public function spaces()
     {
         return $this->belongsToMany(Space::class, 'order_sub_service')
-            ->withPivot('sub_service_id', 'quantity')
+            ->withPivot('sub_service_id', 'quantity','space_id')
             ->withTimestamps();
     }
-    public function service()
+    public function service(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Service::class);
     }
 
-    public function user()
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function provider()
+    public function provider(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Provider::class);
     }
 
-    public function location()
+    public function location(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Location::class);
     }
@@ -115,7 +156,7 @@ class Order extends Model implements HasMedia
         // TODO: neeed more optimization
 
         if ($this->subServices->isEmpty()) {
-            return INF;
+            return 0;
         }
 
         $max = 0;
@@ -123,7 +164,9 @@ class Order extends Model implements HasMedia
         foreach ($this->subServices as $subService) {
             $quantity = $subService->pivot->quantity;
             $spaceMaxPrice = 0;
-            Log::info('subservice',[$quantity]);
+            $maxForSubService = 0;
+            Log::channel('test')->info('subservice',[$quantity]);
+            Log::channel('test')->info('pivot',[$subService->pivot]);
             // Check if space_id is set in the pivot data
             if ($subService->pivot->space_id) {
                 // Find the max price for the space if it exists
@@ -133,12 +176,18 @@ class Order extends Model implements HasMedia
 
                 // Use the max_price from the space's pivot table if available
                 $spaceMaxPrice = $space?->pivot->max_price ?? 0;
-                Log::info('space',['subService'=>$subService, 'quantity'=>$quantity,'spaceMaxPrice'=>$spaceMaxPrice]);
-                $max += ($quantity * $spaceMaxPrice);
+                Log::channel('test')->info('space',['subService'=>$subService, 'quantity'=>$quantity,'spaceMaxPrice'=>$spaceMaxPrice]);
+                $maxForSubService = ($quantity * $spaceMaxPrice);
+                $max += ($maxForSubService);
 
             }else{
-                $max += ($quantity * $subService->max_price);
+                $maxForSubService = ($quantity * $subService->max_price);
+                $max += ($maxForSubService);
+//                $max += ($quantity * $subService->max_price);
             }
+            $subService->pivot->max_price = $maxForSubService;
+            $subService->pivot->save();
+
 
         }
 
@@ -171,7 +220,33 @@ class Order extends Model implements HasMedia
 
     public function scopeWithRelationsInProvider($query):mixed
     {
-        return $query->with('location', 'subServices', 'service');
+        return $query->with('location', 'orderSubServices', 'service','user');
+    }
+
+    /**
+     * Scope a query to filter orders by provider ID.
+     *
+     * @param Builder $query
+     * @param mixed $providerId
+     * @return Builder
+     */
+    public function scopeForProvider($query, $providerId): Builder
+    {
+        return $query->where('provider_id', $providerId);
+    }
+
+    /**
+     * Get the warranty associated with the order (optional).
+     */
+    public function warranty()
+    {
+        return $this->belongsTo(Warranty::class);
+    }
+
+    public function calculateTotal($orderPrice): float
+    {
+        $warrantyCost = $this->warranty ? $this->warranty->calculateCost($orderPrice) : 0;
+        return $orderPrice + $warrantyCost;
     }
 
 }

@@ -30,7 +30,7 @@ class RegisterUserRequest extends FormRequest
             'country_id' => 'exists:countries,id',
             'gender' => 'required|in:male,female',
             'personal' => 'image|mimes:jpeg,png,jpg|max:5120',
-            'date_of_birth' => 'date|before:today|date_format:Y-m-d',
+            'date_of_birth' => 'nullable|date|before:today|date_format:Y-m-d',
         ];
     }
 }

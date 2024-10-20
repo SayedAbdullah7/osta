@@ -13,15 +13,24 @@ return new class extends Migration
     {
         Schema::create('discount_codes', function (Blueprint $table) {
             $table->id();
-            $table->string('code')->unique(); // Unique discount code
-            $table->decimal('discount_amount', 8, 2)->default(0.00); // Fixed amount discount
-            $table->decimal('discount_percentage', 5, 2)->nullable(); // Percentage-based discount
-            $table->boolean('is_active')->default(true); // Indicates if the code is active
-            $table->timestamp('expires_at')->nullable(); // Expiration date of the code
-            $table->timestamp('used_at')->nullable(); // When the code was used
-            $table->unsignedBigInteger('used_by')->nullable(); // User who used the discount code
-            $table->foreign('used_by')->references('id')->on('users')->onDelete('set null'); // Foreign key to users table
+            $table->string('code')->unique(); // Discount code
+            $table->decimal('value', 10, 2); // Value of the discount
+            $table->enum('type', ['fixed', 'percentage']); // Type of discount
+            $table->boolean('is_active')->default(true); // Status of the discount
+            $table->timestamp('expires_at')->nullable(); // Expiration date
+            $table->timestamp('used_at')->nullable(); // When it was used
+            $table->unsignedBigInteger('used_by')->nullable(); // User ID who used the code
             $table->timestamps();
+//            $table->id();
+//            $table->string('code')->unique(); // Unique discount code
+//            $table->decimal('discount_amount', 8, 2)->default(0.00); // Fixed amount discount
+//            $table->decimal('discount_percentage', 5, 2)->nullable(); // Percentage-based discount
+//            $table->boolean('is_active')->default(true); // Indicates if the code is active
+//            $table->timestamp('expires_at')->nullable(); // Expiration date of the code
+//            $table->timestamp('used_at')->nullable(); // When the code was used
+//            $table->unsignedBigInteger('used_by')->nullable(); // User who used the discount code
+//            $table->foreign('used_by')->references('id')->on('users')->onDelete('set null'); // Foreign key to users table
+//            $table->timestamps();
 //            $table->id();
 //            $table->string('code')->unique();
 //            $table->enum('type', ['fixed', 'percentage']); // Discount type: fixed amount or percentage

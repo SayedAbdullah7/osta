@@ -17,6 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('sub_service_id');
             $table->unsignedBigInteger('space_id')->nullable();
             $table->integer('quantity')->unsigned()->default(1);
+            $table->string('space_name')->nullable();
 
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
             $table->foreign('sub_service_id')->references('id')->on('sub_services')->onDelete('cascade');

@@ -22,7 +22,9 @@ class OrderResource extends JsonResource
             'start' => $this->start,
             'end' => $this->end,
             'warranty_id' => $this->warranty_id,
+//            'warranty_ex' => $this->warranty,
             'status' => $this->status,
+            'is_confirmed' => $this->is_confirmed,
             'desc' => $this->desc,
             'price' => $this->price,
             'unknown_problem'=>$this->unknown_problem,
@@ -34,7 +36,8 @@ class OrderResource extends JsonResource
             'service' => new ServiceResource($this->whenLoaded('service')),
             'provider' => new ProviderResource($this->whenLoaded('provider')),
 //            'location' => new LocationResource($this->whenLoaded('location')),
-            'sub_services' => SubServiceResource::collection($this->whenLoaded('subServices')),
+//            'sub_services' => SubServiceResource::collection($this->whenLoaded('subServices')),
+            'sub_services' => OrderSubServiceResource::collection($this->whenLoaded('orderSubServices')),
             'images' => $this->getMedia('images')->map(function (Media $media) {
                 return $media->getFullUrl();
             }),
@@ -48,6 +51,13 @@ class OrderResource extends JsonResource
                 $this->offers_count > 2
             ),//            ' => $this->whenCounted('orders_count'),
 //            'images2' => $this->getMediaUrls('images'),
+            'offers_count' => $this->offers_count,
+            'warranty' => $this->whenLoaded('warranty', function () {
+                $data['expiration_date'] = $this->created_at->copy()->addMonths($this->duration_months);
+                return new WarrantyResource($this->warranty,$this->created_at);
+            }),
+            'created_at' => date_format($this->created_at, 'Y-m-d H:i:s'),
+
         ];
     }
 }

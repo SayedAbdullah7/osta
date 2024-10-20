@@ -10,9 +10,11 @@ use App\Models\Order;
 use App\Models\Provider;
 use App\Models\User;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,22 +29,92 @@ class OrderRepository implements OrderRepositoryInterface
 //        $this->orderRepository = $orderRepository;
 //    }
 
-    public function getOrdersForUser(User $user): Collection
+//    public function getOrdersForUser(User $user): Collection
+//    {
+//        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
+//            $q->pending()->latest('id')->take(2);
+//        },'offers.provider'])->orderByDesc('id')->get();
+//    }
+//
+//    public function getOrdersForUserWithStatusIn(mixed $user, array $statuses)
+//    {
+//        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
+//            $q->pending()->latest('id')->take(2);
+//        },'offers.provider'])->whereIn('status', $statuses)->orderByDesc('id')->get();
+//    }
+    /**
+     * Base query for fetching orders with common relationships and conditions.
+     *
+     * This method creates a query for the given user's orders, including relationships
+     * (e.g., 'service', 'subServices', and 'offers') and counting offers. It also applies
+     * a sort order by the latest `id`.
+     *
+     * @param User $user The user whose orders are being queried.
+     *
+     * @return Builder The base query builder for user orders.
+     */
+    protected function baseQueryForUser(User $user): Builder | HasMany
     {
-        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
-            $q->pending()->latest('id')->take(2);
-        },'offers.provider'])->get();
+        return $user->orders()->withCount('offers')
+            ->with([
+                'warranty',
+                'provider',
+                'service',
+                'orderSubServices',
+                'subServices',
+                'offers' => function ($q) {
+                    $q->pending()->latest('id');
+                },
+                'offers.provider',
+                'media',
+                'offers.provider.reviewStatistics'
+            ])
+            ->orderByDesc('id');
     }
 
-    public function getOrdersForUserWithStatusIn(mixed $user, array $statuses)
+    /**
+     * Retrieve paginated orders for a specific user.
+     *
+     * This method uses the base query to fetch paginated orders related to the given user,
+     * including services, sub-services, and pending offers, along with the count of offers.
+     * Orders are returned in descending order by `id`. Pagination metadata is included.
+     *
+     * @param User $user The user whose orders are being fetched.
+     * @param int $perPage The number of orders to display per page (default is 10).
+     *
+     * @return Paginator Paginated list of user orders.
+     */
+    public function getOrdersForUser(User $user, int $perPage = 10): Paginator|LengthAwarePaginator
     {
-        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
-            $q->pending()->latest('id')->take(2);
-        },'offers.provider'])->whereIn('status', $statuses)->get();
+        return $this->baseQueryForUser($user)->paginate($perPage);
     }
+
+    /**
+     * Retrieve paginated orders for a user filtered by statuses.
+     *
+     * This method uses the base query to fetch paginated orders for the user, filtered
+     * by the given statuses. It includes the same relationships and offer counts as
+     * `getOrdersForUser`, but filters the results based on the provided statuses.
+     * Pagination metadata is included.
+     *
+     * @param User $user The user whose orders are being fetched.
+     * @param array $statuses An array of statuses to filter the user's orders by.
+     * @param int $perPage The number of orders to display per page (default is 10).
+     *
+     * @return Paginator Paginated list of user orders filtered by status.
+     */
+    public function getOrdersForUserWithStatusIn(User $user, array $statuses, int $perPage = 10): Paginator|LengthAwarePaginator
+    {
+        return $this->baseQueryForUser($user)
+            ->whereIn('status', $statuses)
+            ->paginate($perPage);
+    }
+
+
+
     public function getOrderForUserById(int $id,User $user): Order|null
     {
-        return $user->orders()->where('id',$id)->withCount('offers')->with(['service', 'subServices', 'offers.provider'])->first();
+        return $user->orders()->where('id',$id)->withCount('offers')->with(['service', 'orderSubServices', 'offers.provider','provider','media'])->first();
     }
 
     public function find(int $id)
@@ -66,7 +138,7 @@ class OrderRepository implements OrderRepositoryInterface
      * @param $provider
      * @return Paginator
      */
-    public function getAvailablePaginatedPendingOrdersForProvider(array $params, $provider): Paginator
+    public function getAvailablePaginatedPendingOrdersForProvider(array $params, $provider): Paginator|LengthAwarePaginator
     {
         $perPage = $params['per_page'] ?? 20;
         $sortBy = $params['sort_by'] ?? 'id';
@@ -85,16 +157,26 @@ class OrderRepository implements OrderRepositoryInterface
             $query->whereIn('services.id', $serviceIds);
         })->pluck('services.id')->toArray();
 
-        $query = Order::withRelationsInProvider()->pending()->whereIn('service_id', $providerServiceIds)->whereDoesntHave('cancellationProviders', function ($query) use ($providerId) {
+        $query = Order::withRelationsInProvider()->pending()
+//            ->whereIn('service_id', $providerServiceIds)
+            ->whereDoesntHave('cancellationProviders', function ($query) use ($providerId) {
             $query->where('provider_id', $providerId);
         })->whereDoesntHave('offers', static function ($query) use ($providerId) {
-            $query->where('provider_id', $providerId)->where('status', OrderStatusEnum::PENDING);
+            $query->forProvider($providerId)
+                ->where(static function($query) {
+                    $query->pending()
+                        ->orWhere(static function($query) {
+                            $query
+                           ->rejected()
+                                ->IsSecond();
+                        });
+                });
         })->when(!empty($ids), static function ($query) use ($ids) {
             $query->whereIn('id', $ids);
         });
         $query = $this->applyOrderBy($query, $sortBy, $sortDesc, $providerLatitude, $providerLongitude);
 
-        return $query->simplePaginate($perPage, ['*'], 'page', $page);
+        return $query->paginate($perPage, ['*'], 'page', $page);
     }
 
     /**
@@ -119,10 +201,46 @@ class OrderRepository implements OrderRepositoryInterface
         });
     }
 
+    protected function baseQueryForGetProviderOrders(Provider $provider): Builder | HasMany
+    {
+        return $provider->orders()
+            ->with([
+                'user',
+                'service',
+                'orderSubServices',
+                'media'
+            ])
+            ->orderByDesc('id');
+    }
+
+    /**
+     * @param Provider $provider
+     * @param int $perPage The number of orders to display per page (default is 10).
+     *
+     * @return Paginator|LengthAwarePaginator Paginated list of user orders.
+     */
+    public function getOrdersForProvider(Provider $provider, int $perPage = 10): Paginator|LengthAwarePaginator
+    {
+        return $this->baseQueryForGetProviderOrders($provider)->paginate($perPage);
+    }
+
+    /**
+     * @param Provider $provider
+     * @param array $statuses
+     * @param int $perPage
+     * @return Paginator|LengthAwarePaginator Paginated list of user orders filtered by status.
+     */
+    public function getOrdersForProviderWithStatusIn(Provider $provider, array $statuses, int $perPage = 10): Paginator|LengthAwarePaginator
+    {
+        return $this->baseQueryForGetProviderOrders($provider)
+            ->whereIn('status', $statuses)
+            ->paginate($perPage);
+    }
+
     //get orders that belongs to provider
     public function getProviderOrders(Provider $provider): Collection
     {
-        return $provider->orders()->get();
+        return $provider->orders()->with('user')->orderByDesc('id')->get();
     }
 
 //    public function getPendingOrders(int $perPage, string $sortBy, bool $sortDesc, array $serviceIds, int $providerId, ?float $providerLatitude, ?float $providerLongitude): Collection
@@ -281,7 +399,13 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function setMaxPriceForOrder(Order $order): Order
     {
-        $order->max_allowed_price = $order->maxAllowedOfferPrice();
+        if ($order->unknown_problem){
+            $order->max_allowed_price = null;
+        }else{
+            $max = $order->maxAllowedOfferPrice();
+            $max = $max > 0 ? $max : null;
+            $order->max_allowed_price = $max;
+        }
         $order->save();
         return $order;
     }
@@ -294,7 +418,7 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function loadRelations(Order $order): Order
     {
-        $order->load('user', 'location', 'warranty', 'service', 'subServices');
+        $order->load('user', 'location', 'warranty', 'service', 'orderSubServices');
         return $order;
     }
 
@@ -342,7 +466,7 @@ class OrderRepository implements OrderRepositoryInterface
 
             DB::commit();
             $order->refresh();
-            $order->load('subServices', 'service', 'user', 'location');
+            $order->load('orderSubServices', 'service', 'user', 'location');
             return $order;
         } catch (\Exception $e) {
             DB::rollback();
@@ -359,6 +483,20 @@ class OrderRepository implements OrderRepositoryInterface
         return Order::where('id', $orderId)
             ->where('user_id', $userId)
             ->first();
+    }
+    public function offerCountIncrement($orderId)
+    {
+        // Find the order by its ID
+        $order = Order::find($orderId);
+
+        // Check if the order exists
+        if ($order) {
+            // Increment the offer_count
+            $order->increment('offer_count');
+        }
+
+        // You may want to return the updated order or a success message
+        return $order;
     }
 
 }

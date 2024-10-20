@@ -6,14 +6,42 @@ use App\Enums\OfferStatusEnum;
 use App\Enums\OrderStatusEnum;
 use App\Models\Offer;
 use App\Services\ProviderOfferService;
+use Illuminate\Database\Eloquent\Collection;
 
 class OfferRepository
 {
     public function getOffersForProvider(int $providerId): \Illuminate\Database\Eloquent\Collection|array
     {
-        return Offer::with(['order', 'order.user', 'order.service', 'order.subServices'])
+        return Offer::with(['order', 'order.user', 'order.service', 'order.orderSubServices'])
             ->where('provider_id', $providerId)
             ->get();
+    }
+
+    /**
+     * @param int $providerId
+     * @return Collection|array
+     */
+    public function getPendingOffersForProvider(int $providerId): \Illuminate\Database\Eloquent\Collection|array
+    {
+        return Offer::with(['order', 'order.user', 'order.service', 'order.orderSubServices'])
+            ->where('provider_id', $providerId)->where('status', OfferStatusEnum::PENDING)
+            ->get();
+    }
+
+    public function getAllOffersForProviderPaginated(int $providerId,$page,$perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator|\Illuminate\Pagination\LengthAwarePaginator
+    {
+        return Offer::with(['order', 'order.user', 'order.service', 'order.orderSubServices'])
+            ->where('provider_id', $providerId)
+            ->WhereNot( function($query) {
+                $query
+                    ->rejected()
+                    ->IsSecond();
+            })
+            ->whereHas('order', static function ($query) {
+                return $query->whereNot('status', OrderStatusEnum::ACCEPTED)->whereNot('status', OrderStatusEnum::CANCELED);
+            })
+            ->orderByDesc('id')
+            ->paginate($perPage, ['*'], 'page', $page);
     }
 
     public function createOffer(array $data): Offer
@@ -21,7 +49,7 @@ class OfferRepository
         return Offer::create($data);
     }
 
-    public function findOffer(int $providerId, int $orderId, OfferStatusEnum $status, bool $isSecond = false)
+    public function findOffer(int $providerId, int $orderId, OfferStatusEnum $status, bool $isSecond = false): Offer|null
     {
         return Offer::where('provider_id', $providerId)
             ->where('order_id', $orderId)

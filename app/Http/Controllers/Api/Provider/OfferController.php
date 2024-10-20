@@ -26,7 +26,9 @@ class OfferController extends Controller
     public function index()
     {
         $providerId = auth()->id();
-        return $this->providerOfferService->getOffersForProvider($providerId);
+        $page = request('page', 1);
+        $perPage = request('perPage', 10);
+        return $this->providerOfferService->getOffersForProvider($providerId,$page,$perPage);
     }
 
     public function sendOffer(SendOfferRequest $request): \Illuminate\Http\JsonResponse

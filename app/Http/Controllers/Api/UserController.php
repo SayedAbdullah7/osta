@@ -241,14 +241,14 @@ class UserController extends Controller
     public function banners()
     {
         // Directory where images are stored
-        $directory = public_path('app');
+        $directory = public_path('app/banners');
 
         // Get all files in the directory
         $files = array_diff(scandir($directory), ['.', '..']);
 
         // Create URLs for each image
         $imageUrls = array_map(function($file) use ($directory) {
-            return asset('app/' . $file);
+            return asset('app/banners/' . $file);
         }, $files);
 
         // Wrap the URLs in MediaResource collection

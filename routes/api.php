@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\ProviderLocationController;
 use App\Http\Controllers\Api\User\DiscountCodeController;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\GeneralController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 /*
@@ -66,13 +68,16 @@ Route::middleware([])->group(function () {
 
             Route::get('banners', [\App\Http\Controllers\Api\UserController::class, 'banners']);
 
+            Route::get('warranties', [\App\Http\Controllers\Api\WarrantyController::class, 'index']);
+
+            Route::post('order/{orderId}/make-done/', [\App\Http\Controllers\Api\Provider\OrderController::class, 'updateOrderToDone']); // send offer for order
+
         });
 
     });
 
 
     Route::prefix('provider')->group(function () {
-
 
         Route::post('check-phone', [\App\Http\Controllers\Api\ProviderController::class, 'checkPhoneRegistered']);
 
@@ -88,6 +93,12 @@ Route::middleware([])->group(function () {
         Route::post('verify', [\App\Http\Controllers\Api\ProviderController::class, 'verify']);
 
         Route::middleware(['auth:provider','approved'])->group(function () {
+            Route::get('subscription/available', [\App\Http\Controllers\Api\SubscriptionController::class, 'getLastActiveSubscription']);
+            Route::post('subscription/{subscription}', [\App\Http\Controllers\Api\SubscriptionController::class, 'renewSubscription']);
+            Route::get('subscription', [\App\Http\Controllers\Api\SubscriptionController::class, 'getCurrentSubscription']);
+
+            Route::post('/live-location', [ProviderLocationController::class, 'store']);
+
 
             Route::get('profile', [\App\Http\Controllers\Api\ProviderController::class, 'profile']);
             Route::put('profile', [\App\Http\Controllers\Api\ProviderController::class, 'update']);
@@ -142,6 +153,7 @@ Route::middleware([])->group(function () {
             return response()->json(['message' => 'done'], 200);
         });
     });
+
     Route::get('space', [\App\Http\Controllers\Api\SpaceController::class, 'index']);
 
     Route::get('country', [\App\Http\Controllers\Api\CountryController::class, 'country_index']);
@@ -178,6 +190,8 @@ Route::middleware([])->group(function () {
 
         Route::get('/ticket/{ticket}', [\App\Http\Controllers\Api\TicketController::class, 'show']);
         Route::post('/ticket/{ticket}/message', [\App\Http\Controllers\Api\TicketController::class, 'storeMessage']);
+
+        Route::get('/social-media', [GeneralController::class, 'getSocialMediaLinks']);
 
     });
 

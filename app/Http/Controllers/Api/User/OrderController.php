@@ -20,7 +20,7 @@ class OrderController extends Controller
         $this->userServiceOrder = $userServiceOrder;
     }
 
-    public function getUserOrders()
+    public function getUserOrders(): JsonResponse
     {
         $user = request()->user();
         $status = request()->status;
@@ -41,10 +41,12 @@ class OrderController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     * @throws \Exception
      */
     public function store(StoreOrderRequest $request): JsonResponse
     {
         $order = $this->userServiceOrder->createOrder($request);
+        $order->load(['orderSubServices']);
         return $this->respondWithResource(new OrderResource($order), 'Order created successfully');
     }
 }

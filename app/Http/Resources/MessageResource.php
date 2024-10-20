@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,14 +18,14 @@ class MessageResource extends JsonResource
 //        return parent::toArray($request);
         $class = get_class(auth()->user());
         $userId = auth()->id();
-
-        return [
+        $orderId = $this->order_id;
+        $response = [
             'id' => $this->id,
             'content' => $this->content,
-//            'conversation_id' => $this->conversation_id,
-//            'sender_id' => $this->sender_id,
-//            'sender_type' => $this->sender_type,
-//            'sender' => $this->sender_id == $userId && $this->sender_type == $class ? 'me' : 'other',
+            // 'conversation_id' => $this->conversation_id,
+            // 'sender_id' => $this->sender_id,
+            // 'sender_type' => $this->sender_type,
+            // 'sender' => $this->sender_id == $userId && $this->sender_type == $class ? 'me' : 'other',
             "is_me" => (boolean)$this->sender_id == $userId && $this->sender_type == $class,
             'is_read' => (boolean)$this->is_read,
             'created_at' => date_format($this->created_at, 'Y-m-d H:i:s'),
@@ -35,7 +36,7 @@ class MessageResource extends JsonResource
                     'thumb' => $media->getUrl('thumb'),
                 ];
             }),
-//            'options' => $this->options
+            // 'options' => $this->options
             'options' => [
                 'variables' => $this->options['variables'] ?? null,
                 'options' => $this->options['options'] ?? null,
@@ -44,5 +45,15 @@ class MessageResource extends JsonResource
                 'action_status' => (string)($this->options['action_status'] ?? ''),
             ],
         ];
+
+        // Add order details if order_id is not null
+        if ($orderId) {
+            $order = Order::with(['service', 'orderSubServices', 'subServices'])->find($orderId); // Eager load the relationships
+            if ($order) {
+                $response['order'] = new OrderResource($order); // Use OrderResource to format the order
+            }
+        }
+
+        return $response;
     }
 }

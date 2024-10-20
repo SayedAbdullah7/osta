@@ -14,17 +14,17 @@ use Illuminate\Support\Facades\Cache;
 
 class MessageRepository
 {
-    public function getSimplePaginateMessagesByConversationId($perPage, $page, $conversationId): \Illuminate\Contracts\Pagination\Paginator
+    public function getSimplePaginateMessagesByConversationId($perPage, $page, $conversationId): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
 //        return Message::where('conversation_id', $conversationId)->orderBy('id', 'desc')->simplePaginate($perPage, ['*'], 'page', $page);
-        return Message::with('media')->where('conversation_id', $conversationId)->orderBy('id', 'desc')->simplePaginate($perPage, ['*'], 'page', $page);
+        return Message::with('media')->where('conversation_id', $conversationId)->orderBy('id', 'desc')->paginate($perPage, ['*'], 'page', $page);
     }
 
-    public function getSimplePaginateMessagesByOrderId($perPage, $page, $orderId): \Illuminate\Pagination\Paginator
+    public function getSimplePaginateMessagesByOrderId($perPage, $page, $orderId): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         return Message::whereHas('conversation', function ($query) use ($orderId) {
             $query->where('model_id', $orderId);
-        })->orderBy('id', 'desc')->simplePaginate($perPage, ['*'], 'page', $page);
+        })->orderBy('id', 'desc')->paginate($perPage, ['*'], 'page', $page);
     }
 
 
@@ -82,7 +82,7 @@ class MessageRepository
      * @param $request
      * @return Message
      */
-    public function createMessage($conversationId, $content, $senderId = null, $senderType = null, $options = null): Message
+    public function createMessage($conversationId, $content, $senderId = null, $senderType = null, $options = null,$orderId = null): Message
     {
         $message = new Message();
         $message->content = $content;
@@ -93,6 +93,9 @@ class MessageRepository
 //        $message->sender_type = get_class(auth()->user());
         if ($options) {
             $message->options = $options;
+        }
+        if ($orderId) {
+            $message->order_id = $orderId;
         }
         $message->save();
         return $message;
@@ -135,17 +138,47 @@ class MessageRepository
         return Message::find($messageid);
     }
 
-    public function geAvailableOrderConversationsListWithTheOtherMemberFor($member)
+    public function geAvailableOrderConversationsListWithTheOtherMemberFor($member,$page,$perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         $orderIds = $member->orders()->availableForConversation()->pluck('id');
         if (get_class($member) == User::class) {
-            $conversations = Conversation::with('lastMessage.media')->where('model_type', Order::class)
+            $conversations = Conversation::with('lastMessage.media','model',
+                'model.service',
+                'model.orderSubServices',
+                'model.subServices',
+            )->where('model_type', Order::class)
                 ->whereIn('model_id', $orderIds)
-                ->with(['providers.media'])->get();
+//                ->join('messages', 'conversations.id', '=', 'messages.conversation_id')
+//                ->orderBy('messages.id', 'desc') // Order by the last message's id
+//                ->select('conversations.*') // Select only conversation fields
+                ->with(['providers.media'])
+                ->orderBy(
+                    Message::select('id')
+                        ->whereColumn('conversation_id', 'conversations.id')
+                        ->latest()
+                        ->take(1),
+                    'desc'
+                )
+                ->paginate($perPage, ['*'], 'page', $page);
         } else {
-            $conversations = Conversation::with('lastMessage.media')->where('model_type', Order::class)
+            $conversations = Conversation::with('lastMessage.media','model',
+                'model.service',
+                'model.orderSubServices',
+                'model.subServices',
+            )->where('model_type', Order::class)
                 ->whereIn('model_id', $orderIds)
-                ->with(['users.media'])->get();
+//                ->join('messages', 'conversations.id', '=', 'messages.conversation_id')
+//                ->orderBy('messages.id', 'desc') // Order by the last message's id
+//                ->select('conversations.*') // Select only conversation fields
+                ->with(['users.media'])
+                ->orderBy(
+                    Message::select('id')
+                        ->whereColumn('conversation_id', 'conversations.id')
+                        ->latest()
+                        ->take(1),
+                    'desc'
+                )
+                ->paginate($perPage, ['*'], 'page', $page);
         }
 
         return $conversations;

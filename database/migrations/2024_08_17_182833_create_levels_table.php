@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('name');
             $table->integer('level');
             $table->integer('orders_required');
+            $table->integer('is_paid')->default(0);
+            $table->integer('percentage')->default(1);
             $table->foreignId('next_level_id')->nullable()->constrained('levels')->nullOnDelete();
             $table->timestamps();
         });

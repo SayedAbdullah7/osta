@@ -12,6 +12,7 @@ enum OrderStatusEnum: string
     case ALMOST_DONE = 'almost done';
     case DONE = 'done';
     case REJECTED = 'rejected';
+    case CANCELED = 'canceled';
 
 
 }

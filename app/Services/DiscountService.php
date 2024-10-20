@@ -83,4 +83,18 @@ class DiscountService
 
         return ['valid' => true, 'message' => 'Discount code applied successfully.'];
     }
+
+    /**
+     * @throws Exception
+     */
+    public function updateOrderWithDiscount(Order $order): void
+    {
+        $discountAmount = $this->calculateDiscountAmount($order->discount_code, $order->max_allowed_price);
+        // Calculate the new order total after discount
+        $newTotal = $order->max_allowed_price - $discountAmount;
+
+        // Ensure the new total does not go below zero
+        $order->max_allowed_price = max($newTotal, 0);
+        $order->save();
+    }
 }

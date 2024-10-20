@@ -11,6 +11,9 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Message extends Model implements HasMedia
 {
     use InteractsWithMedia;
+    public const ACTION_CONFIRM_ORDER = 'confirm_order';
+    public const ACTION_ADDITIONAL_COST = 'additional_cost';
+    public const ACTION_PAY = 'pay';
 
 //    protected $fillable = ['content', 'conversation_id', 'sender_id', 'sender_type'];
     protected $guarded = [];

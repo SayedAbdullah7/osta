@@ -232,7 +232,15 @@ class ProviderController extends Controller
 
     public function profile(): JsonResponse
     {
-        $provider = Auth::guard('provider')->user()->load('country','media','services')->loadCount('orders');
+        $provider = Auth::guard('provider')->user()
+            ->load([
+                'country',
+                'media',
+                'services',
+                'reviewStatistics',
+                'reviews',
+            ])
+            ->loadCount('orders');
 
         return $this->respondWithResource(new ProviderResource($provider), 'provider profile');
     }

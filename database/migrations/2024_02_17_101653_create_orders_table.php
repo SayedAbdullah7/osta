@@ -29,6 +29,7 @@ return new class extends Migration
             $table->decimal('location_longitude',10,7)->index();
             $table->string('location_desc')->nullable();
             $table->string('discount_code')->nullable();
+            $table->tinyInteger('offer_count')->unsigned()->default(0);
             $table->foreignIdFor(\App\Models\User::class)->constrained()->restrictOnDelete();
             $table->foreignIdFor(\App\Models\Service::class)->constrained()->restrictOnDelete();
             $table->foreignIdFor(\App\Models\Provider::class)->nullable()->constrained()->restrictOnDelete();
