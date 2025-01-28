@@ -57,6 +57,26 @@ class InvoiceController extends Controller
 //        ]);
     }
 
+    public function pay($orderId)
+    {
+        $order = Order::where('id', $orderId)->firstOrFail();
+//        return  auth()->user();
+//        return $order->user;
+
+//        $order = Order::where('id', $orderId)->where('status', \App\Enums\OrderStatusEnum::ACCEPTED)->firstOrFail();
+        $walletService = app(WalletService::class);
+//        return $userWallet = $walletService->getWallet($order->user);
+//        $amount = 100;
+//        return $walletService->checkBalance($userWallet, $amount);
+//        $invoice = $order->invoice ?? $walletService->createInvoice($order);
+        $respone = $walletService->payOrderByWallet($order);
+        if ($respone['status']) {
+            return $this->respondSuccess('order paid successfully');
+        }else{
+            return $this->respondError($respone['message']);
+        }
+    }
+
     /**
      * Show the form for editing the specified resource.
      */

@@ -32,6 +32,7 @@ class OrderResource extends JsonResource
             'location_latitude' => $this->location_latitude,
             'location_longitude' => $this->location_longitude,
             'location_desc' => $this->location_desc,
+            'location_name' => $this->location_name,
             'user' => new UserResource($this->whenLoaded('user')),
             'service' => new ServiceResource($this->whenLoaded('service')),
             'provider' => new ProviderResource($this->whenLoaded('provider')),
@@ -56,6 +57,8 @@ class OrderResource extends JsonResource
                 $data['expiration_date'] = $this->created_at->copy()->addMonths($this->duration_months);
                 return new WarrantyResource($this->warranty,$this->created_at);
             }),
+            'provider_review' => new ReviewResource($this->whenLoaded('providerReview')),
+            'user_review' => new ReviewResource($this->whenLoaded('userReview')),
             'created_at' => date_format($this->created_at, 'Y-m-d H:i:s'),
 
         ];

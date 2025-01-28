@@ -45,10 +45,14 @@ class ProviderStatisticController extends Controller
 //            ->value('level');
         $authProvider = auth()->user();
         $providerId = $authProvider->id;
-      $currentLevel = $this->providerStatisticsService->getProviderStatistics($providerId)?->level;
+      $ProviderStatistics = $this->providerStatisticsService->getProviderStatistics($providerId);
+      $currentLevel = $ProviderStatistics?->level;
 
-        $levels = $levels->map(function ($level) use ($currentLevel) {
+        $levels = $levels->map(function ($level) use ($currentLevel,$ProviderStatistics) {
             $level->is_current_level = $level->level == $currentLevel;
+            if ($level->is_current_level) {
+                $level->statistics = $ProviderStatistics;
+            }
             return $level;
         });
         return $this->respondWithResource(LevelResource::collection($levels));

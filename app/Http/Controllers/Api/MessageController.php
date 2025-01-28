@@ -182,10 +182,10 @@ class MessageController extends Controller
         $this->validate($request, [
             'conversation_id' => 'required_without:order_id|exists:conversations,id',
             'order_id' => 'required_without:conversation_id|exists:orders,id',
-            'action' => 'required|in:additional_cost,pay,cash_payment',
+            'action' => 'required|in:purchases,additional_cost,pay,cash_payment,convert_to_offer,convert_to_preview,get_invoice',
 //            'action_value' => 'required',
         ]);
-        $message= $this->messageService->makeAction($request->conversation_id, $request->order_id, $request->input('action'),$request->input('action_value'));
+        $message= $this->messageService->makeAction($request->conversation_id, $request->order_id, $request->input('action'),$request->input('action_value'),(string)$request->input('description'),$request->media);
         return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
     }
     public function responseAction(Request $request)

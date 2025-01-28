@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\User;
 
+use App\Enums\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
@@ -49,4 +50,19 @@ class OrderController extends Controller
         $order->load(['orderSubServices']);
         return $this->respondWithResource(new OrderResource($order), 'Order created successfully');
     }
+
+
+    public function cancelOrder($orderId)
+    {
+        $user = request()->user();
+        $order = $user->orders()->where('id', $orderId)->where('status', OrderStatusEnum::PENDING)->first();
+        if (!$order) {
+            return $this->respondNotFound('Order not found');
+        }
+         $this->userServiceOrder->cancelOrder($order);
+
+        return $this->respondSuccess('Order canceled successfully');
+    }
+
+
 }

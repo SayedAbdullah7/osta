@@ -12,6 +12,8 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\MakeRepository::class,
         \App\Console\Commands\MakeInterface::class,
         \App\Console\Commands\MakeRepositoryAndService::class,
+//        \App\Console\Commands\MakeDataTable::class,
+        \App\Console\Commands\GenerateDataTable::class,
     ];
     /**
      * Define the application's command schedule.

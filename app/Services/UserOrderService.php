@@ -56,7 +56,8 @@ class UserOrderService
             $array = [
                 'location_latitude' => $location->latitude,
                 'location_longitude' => $location->longitude,
-                'location_desc' => $location->desc
+                'location_desc' => $location->desc,
+                'location_name' => $location->name
             ];
             $validatedData = array_merge($validatedData, $array);
         }
@@ -164,7 +165,7 @@ class UserOrderService
     public function cancelOrder(Order $order): void
     {
         $order->is_confirmed = 0;
-//        $order->status = OrderStatusEnum::CANCELED;
+        $order->status = OrderStatusEnum::CANCELED;
         $order->save();
     }
 }

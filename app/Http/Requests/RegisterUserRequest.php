@@ -27,7 +27,7 @@ class RegisterUserRequest extends FormRequest
                     return $query->where('is_phone_verified', 1); //use scope
                 }),
             ],
-            'country_id' => 'exists:countries,id',
+//            'country_id' => 'exists:countries,id',
             'gender' => 'required|in:male,female',
             'personal' => 'image|mimes:jpeg,png,jpg|max:5120',
             'date_of_birth' => 'nullable|date|before:today|date_format:Y-m-d',

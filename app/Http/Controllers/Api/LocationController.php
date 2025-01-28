@@ -115,8 +115,15 @@ class LocationController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Location $location)
+    public function destroy($locationId)
     {
-        //
+        $user = auth()->user();
+        $location = $user->locations()->find($locationId);
+        if (!$location) {
+            return $this->respondNotFound('Location not found');
+        }
+        $location->delete();
+            $locations = $user->locations()->get();
+        return $this->respondWithResource(LocationResource::collection($locations), 'location deleted successfully');
     }
 }

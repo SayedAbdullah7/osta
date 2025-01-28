@@ -6,12 +6,15 @@ use App\Enums\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterProviderRequest;
 use App\Http\Requests\UpdateProviderRequest;
+use App\Http\Resources\InvoiceResource;
 use App\Http\Resources\MessageResource;
 use App\Http\Resources\ProviderResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Provider;
+use App\Services\AccountDeletionService;
+use App\Services\FirebaseNotificationService;
 use App\Services\OTPService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -161,6 +164,8 @@ class ProviderController extends Controller
         $validatedData = $request->validate([
             'phone' => 'required|string|max:15',
             'otp' => 'required|string',
+            'firebase_token' => 'required|string', // Firebase token is required
+            'is_ios' => 'required|boolean', // Determine if the device is iOS
         ]);
 
         // Find the provider
@@ -182,6 +187,19 @@ class ProviderController extends Controller
 
         // Clear the OTP after successful login
         OTPService::destroyOTPs($provider);
+
+        DB::transaction(function () use ($provider, $request) {
+            // Delete duplicate tokens
+            \App\Models\DeviceToken::where('token', $request->firebase_token)->orWhere('provider_id', $provider->id)->delete();
+
+            // Save the new token
+            \App\Models\DeviceToken::create([
+                'provider_id' => $provider->id, // Ensure this is null for users
+                'token' => $request->firebase_token,
+                'is_ios' => $request->input('is_ios', false),
+            ]);
+        });
+        AccountDeletionService::cancelDeletionRequest($provider);
 
         // Create a new token for the provider
         $token = $provider->createToken('app-token')->plainTextToken;
@@ -238,7 +256,7 @@ class ProviderController extends Controller
                 'media',
                 'services',
                 'reviewStatistics',
-                'reviews',
+                'reviewsReceived',
             ])
             ->loadCount('orders');
 
@@ -255,7 +273,7 @@ class ProviderController extends Controller
             if ($request->service_id && !empty($request->service_id)) {
                 $this->syncServicesAndBankAccount($provider, $request);
             }
-
+            $provider->is_approved = 0;
             return $provider;
         });
 
@@ -303,6 +321,7 @@ class ProviderController extends Controller
                     'total_completed_orders_today' => $this->getTotalCompletedOrdersToday(),
                     // erring form orders
                     'total_erring_form_completed_orders_today' => $this->getTotalErringFormOrdersCompletedToday(),
+                    'unpaid_invoice' => $this->getPendingInvoices(),
 
                 ],
                 'message' => ''
@@ -322,8 +341,34 @@ class ProviderController extends Controller
         return Invoice::whereHas('order', function ($q) {
             $q->where('provider_id', Auth::guard('provider')->user()->id)
                 ->where('status', OrderStatusEnum::DONE)
-                ->whereDate('created_at', today());
+                ->whereDate('updated_at', today());
         })->sum('provider_earning');
+    }
+
+    public function getPendingInvoices()
+    {
+        $providerId = Auth::guard('provider')->user()->id;
+
+
+//        return Invoice::where('payment_status', 'unpaid')->whereHas('order', function ($query) use ($providerId) {
+//            $query->where('status', OrderStatusEnum::ACCEPTED)->where('provider_id',$providerId);
+//        })->orderBy('id', 'desc')->first();
+        $invoice = Invoice::where('is_sent', 1)->whereHas('order', function ($query) use ($providerId) {
+            $query->where('status', OrderStatusEnum::ACCEPTED)->where('provider_id',$providerId);
+        })->orderBy('id', 'desc')->first();
+        if (!$invoice) {
+            return null;
+        }
+        return new InvoiceResource($invoice);
+    }
+
+    public function setNotificationSetting(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $firebaseService = new FirebaseNotificationService();
+        $setNotificationSetting = $request->input('notification',false);
+        $firebaseService->setNotification($setNotificationSetting,$request->user());
+
+        return $this->respondSuccess('Notification setting updated successfully');
     }
 
 }

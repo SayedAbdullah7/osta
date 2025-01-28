@@ -79,4 +79,8 @@ class SubscriptionService
     {
         return $this->subscriptionRepository->getLastActiveSubscription();
     }
+    public function getAllAvailableSubscriptions()
+    {
+        return $this->subscriptionRepository->getAllAvailableSubscriptions();
+    }
 }

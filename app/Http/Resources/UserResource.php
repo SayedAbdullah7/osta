@@ -27,6 +27,8 @@ class UserResource extends JsonResource
             'token' => $this->token,
             'country_id' => $this->country_id,
             'country' => new CountryResource($this->whenLoaded('country')), // Conditionally include 'country' if it's loaded
+            'total_completed_orders' => $this->whenCounted('orders_count'),
+            'review_statistics' => new ProviderReviewStatisticsResource($this->whenLoaded('reviewStatistics')),
         ];
     }
 }

@@ -15,8 +15,13 @@ class ProviderReviewStatistics extends Model
         'average_rating',
     ];
 
-    public function provider()
+//    public function provider()
+//    {
+//        return $this->belongsTo(Provider::class);
+//    }
+
+    public function reviewable()
     {
-        return $this->belongsTo(Provider::class);
+        return $this->morphTo();
     }
 }

@@ -39,7 +39,7 @@ class ProviderResource extends JsonResource
             'token' => $this->token,
             'total_completed_orders' => $this->whenCounted('orders_count'),
             'review_statistics' => new ProviderReviewStatisticsResource($this->whenLoaded('reviewStatistics')),
-            'reviews' =>  ReviewResource::collection($this->whenLoaded('reviews')),
+            'reviews_received' =>  ReviewResource::collection($this->whenLoaded('reviewsReceived')),
         ];
     }
 }

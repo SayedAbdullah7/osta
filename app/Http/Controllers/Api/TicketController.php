@@ -23,9 +23,14 @@ class TicketController extends Controller
      */
     public function index()
     {
+        $authUser = auth()->user();
+        $userType = get_class($authUser);
         $perPage = 10;
         $page = request()->input('page', 1);
-        $tickets = Ticket::with('conversation')->orderByDesc('id')->simplePaginate($perPage , ['*'], 'page', $page);
+        $tickets = Ticket::with('conversation')
+            ->where('user_id', $authUser->id)  // Filter by the ID of the authenticated user
+            ->where('user_type', $userType)    // Filter by the type of the authenticated
+            ->orderByDesc('id')->simplePaginate($perPage , ['*'], 'page', $page);
         return $this->respondWithResource(TicketResource::collection($tickets),'');
     }
 
@@ -40,7 +45,7 @@ class TicketController extends Controller
         $ticket->user_id = $request->user()->id;
         $ticket->user_type = \get_class($request->user());
         $ticket->save();
-        $conversation = $this->messageService->createConversationForModel($ticket,[$request->user()],$request->description);
+        $conversation = $this->messageService->createConversationForModel($ticket,[$request->user()],$request->description,$request->user());
         $ticket->load('conversation');
         return $this->respondWithResource(new TicketResource($ticket), 'Ticket created successfully');
         return $this->apiResponse(

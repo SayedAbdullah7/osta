@@ -18,7 +18,7 @@ class LevelSeeder extends Seeder
             $levels = [
                 [
                     'level' => 1,
-                    'orders_required' => 10,
+                    'orders_required' => 0,
                     'next_level_id' => null, // Level 1 has no next level
                 ],
                 [

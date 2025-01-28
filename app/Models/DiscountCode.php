@@ -130,4 +130,15 @@ class DiscountCode extends Model
 
         return $this->discount_amount;
     }
+
+    /**
+     * Get the expires_at attribute (return only the date).
+     *
+     * @param  string|Carbon  $value
+     * @return string
+     */
+    public function getExpiresAtAttribute($value)
+    {
+        return Carbon::parse($value)->format('Y-m-d');
+    }
 }

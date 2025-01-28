@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\OrderCategoryEnum;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\MessageResource;
 use App\Http\Resources\ProviderResource;
 use App\Http\Resources\ServiceResource;
 use App\Http\Resources\SubServiceResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Models\SubService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -22,11 +25,11 @@ class ServiceController extends Controller
      */
     public function service_index()
     {
-        $response = Cache::rememberForever('services', function () {
+//        $response = Cache::rememberForever('services', function () {
 //            return Service::all();
             return $this->respondWithResource(ServiceResource::collection(Service::all()), '');
 
-        });
+//        });
         return $response;
     }
 
@@ -38,7 +41,7 @@ class ServiceController extends Controller
         $cacheKey = "sub_services_{$service_id}_" . ($group_by_type ? 'grouped' : 'ungrouped');
 
         // Attempt to retrieve data from cache
-        $response = Cache::remember($cacheKey, 60, function () use ($service_id, $group_by_type) {
+//        $response = Cache::remember($cacheKey, 60, function () use ($service_id, $group_by_type) {
             // Fetch the sub-services with the related spaces and apply filtering if service_id is provided
             $service = Service::find($service_id);
             $loadSpaces = false;
@@ -79,7 +82,7 @@ class ServiceController extends Controller
                 'Sub Services fetched successfully',
                 200
             );
-        });
+//        });
         return $response;
 
         $service_id = request()->service_id;
@@ -149,5 +152,20 @@ class ServiceController extends Controller
     public function destroy(Service $service)
     {
         //
+    }
+
+    public function getSetting()
+    {
+        $setting = ['preview_order_cost' => (int)Setting::getSetting('preview_cost', WalletService::PREVIEW_COST)];
+//        $setting = Setting::getSetting('preview_cost', WalletService::PREVIEW_COST);
+        return $this->apiResponse(
+            [
+                'success' => true,
+                'result' => $setting
+                ,
+                'message' => 'Setting fetched successfully',
+            ]
+        );
+//        return $this->respondSuccess($setting, '', 200);
     }
 }

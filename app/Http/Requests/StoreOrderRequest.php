@@ -46,6 +46,7 @@ class StoreOrderRequest extends FormRequest
                 'numeric',
             ],
             'location_desc' => 'nullable|max:255',
+            'location_name' => 'nullable|max:255',
             'location_id' => [
                 'required_if:location_latitude,null',
                 'required_if:location_longitude,null',
@@ -74,7 +75,7 @@ class StoreOrderRequest extends FormRequest
 //            'sub_service_quantities.*' => 'required|integer|min:1',
 //            'sub_services.*.sub_services_ids' => 'required|exists:sub_services,id',
 //            'sub_services.*.sub_service_quantities' => 'required|integer|min:1',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:5048',
 //            'voice_desc' => 'file|mimes:audio/mpeg,audio/wav,audio/mp3|max:10240', // 10MB Max
             'voice_desc' => [
                 'file',              // Validates that the input is a file

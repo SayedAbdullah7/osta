@@ -36,7 +36,7 @@ class Order extends Model implements HasMedia
     ];
 
     // Static property to control the duration (default 24 hours)
-    public static $recentDurationHours = 24*15;
+    public static $recentDurationHours = 24*30*12;
 
     // Static property to control whether the global scope is applied
     public static $applyRecentScope = true;
@@ -238,12 +238,132 @@ class Order extends Model implements HasMedia
     /**
      * Get the warranty associated with the order (optional).
      */
-    public function warranty()
+    public function warranty(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Warranty::class);
     }
 
     public function calculateTotal($orderPrice): float
+    {
+        $warrantyCost = $this->warranty ? $this->warranty->calculateCost($orderPrice) : 0;
+        return $orderPrice + $warrantyCost;
+    }
+
+    /**
+     * Get all reviews for the order (one from user and one from provider).
+     */
+    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /**
+     * Get the review made by the user for this order.
+     */
+    public function userReview(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Review::class)
+            ->where('reviewable_type', User::class)
+            ->where('reviewed_type', Provider::class);
+    }
+
+    /**
+     * Get the review made by the provider for this order.
+     */
+    public function providerReview(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Review::class)
+            ->where('reviewable_type', Provider::class)
+            ->where('reviewed_type', User::class);
+    }
+    public function orderDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderDetail::class);
+    }
+    /**
+     * Get the price from the accepted offer (if any).
+     */
+    public function getOfferPrice(): float
+    {
+        $offer = $this->offers()->accepted()->first();
+        return $offer ?(float) $offer->price : 0.0;
+    }
+
+    /**
+     * Get the additional cost (if any).
+     */
+    public function getAdditionalCost(): float
+    {
+        $additionalCost = $this->orderDetails()->additionalCost()->first();
+        return $additionalCost ? $additionalCost->value : 0.0;
+    }
+
+    /**
+     * Get the total value of the purchases (if any).
+     */
+    public function getPurchasesValue(): float
+    {
+        $purchases = $this->orderDetails()->purchases()->first();
+        return $purchases ? $purchases->value : 0.0;
+    }
+    public function calculatePrice(): void
+    {
+//        $price = 0;
+//        $offer =$this->offers()->accepted()->first();
+//        $additionalCost= $this->orderDetails()->additionalCost()->first();
+//        $purchases= $this->orderDetails()->purchases()->first();
+//        if ($offer) {
+//            $price += $offer->price;
+//        }
+//
+//        if ($additionalCost) {
+//            $price += $additionalCost->value;
+//        }
+//        if ($purchases) {
+//            $price += $purchases->value;
+//        }
+//        $price = 0;
+//
+//        // Add price from the accepted offer
+//        $offerPrice = $this->getOfferPrice();
+//        $price += $offerPrice;
+//
+//        // Add any additional costs
+//        $additionalCost = $this->getAdditionalCost();
+//        $price += $additionalCost;
+//
+//        // Add value from purchases
+//        $price += $this->getPurchasesValue();
+//
+//        // Calculate warranty cost, passing the sum of offer price and additional cost
+//        $warrantyCost = $this->getWarrantyCost($offerPrice + $additionalCost);
+//        $price += $warrantyCost;
+//
+//
+        $price = 0;
+
+        // Add price from the accepted offer
+        $price += $this->getOfferPrice();
+
+        // Add any additional costs
+        $price += $this->getAdditionalCost();
+
+        // Add value from purchases
+        $price += $this->getPurchasesValue();
+
+//        $price += $this->getWarrantyCost();
+
+        // Set the calculated price on the invoice
+        $this->price = $price;
+
+    }
+
+    public function statusText()
+    {
+        return $this->status?->value;
+    }
+
+    private function getWarrantyCost($orderPrice)
     {
         $warrantyCost = $this->warranty ? $this->warranty->calculateCost($orderPrice) : 0;
         return $orderPrice + $warrantyCost;

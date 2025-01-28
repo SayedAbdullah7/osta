@@ -23,6 +23,7 @@ class SubServiceResource extends JsonResource
             'type' => $this->type,
             'service' => new ServiceResource($this->whenLoaded('service')),
             'spaces' => SpaceResource::collection($this->whenLoaded('spaces')),
+            'image' => $this->getFirstMediaUrl('default', 'thumb'),
         ];
         if ($this->pivot) {
             $data += [

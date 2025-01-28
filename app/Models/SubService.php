@@ -4,10 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
-class SubService extends Model
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Astrotomic\Translatable\Contracts\Translatable as TranslatableContract;
+use Astrotomic\Translatable\Translatable;
+class SubService extends Model   implements HasMedia,TranslatableContract
 {
     use HasFactory;
+    use InteractsWithMedia;
+    use Translatable;
+
+    public array $translatedAttributes = ['name'];
 
     public function orders()
     {

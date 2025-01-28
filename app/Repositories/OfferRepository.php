@@ -38,7 +38,7 @@ class OfferRepository
                     ->IsSecond();
             })
             ->whereHas('order', static function ($query) {
-                return $query->whereNot('status', OrderStatusEnum::ACCEPTED)->whereNot('status', OrderStatusEnum::CANCELED);
+                return $query->whereNot('status', OrderStatusEnum::DONE)->whereNot('status', OrderStatusEnum::CANCELED);
             })
             ->orderByDesc('id')
             ->paginate($perPage, ['*'], 'page', $page);

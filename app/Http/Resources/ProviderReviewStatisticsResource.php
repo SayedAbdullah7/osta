@@ -14,10 +14,11 @@ class ProviderReviewStatisticsResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        //
         return [
-            'total_reviews' => $this->total_reviews,
-            'average_rating' => (string)$this->average_rating,
-            'completed_orders' => $this->completed_orders
+            'total_reviews' => isset($this->total_reviews) ? (int) $this->total_reviews : 0,
+            'average_rating' => isset($this->average_rating) ? (string) $this->average_rating : '0',
+            'completed_orders' => isset($this->completed_orders) ? (int) $this->completed_orders : 0
         ];
     }
 }

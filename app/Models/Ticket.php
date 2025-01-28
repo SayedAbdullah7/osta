@@ -14,4 +14,10 @@ class Ticket extends Model
     {
         return $this->morphOne(Conversation::class, 'model');
     }
+
+    public function user()
+    {
+        return $this->morphTo();
+    }
+
 }

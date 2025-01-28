@@ -30,7 +30,7 @@ class WarrantyResource extends JsonResource
         ];
 
         // Only add expiration_date if orderCreatedAt is provided
-        if ($this->orderCreatedAt) {
+        if ($this->orderCreatedAt && !is_int($this->orderCreatedAt)) {
 //            $data['expiration_date'] = $this->orderCreatedAt;
             $expirationDate = $this->orderCreatedAt->copy()->addMonths($this->duration_months);
             $data['expiration_date'] = $expirationDate->toDateString();

@@ -105,6 +105,7 @@ class ProviderOfferService
             $offer = $offer->fresh();
         }
         $this->pushToSocket($offer);
+        $this->pushToFirebase($offer);
 
         return $this->respondSuccess('Offer sent successfully');
     }
@@ -159,5 +160,12 @@ class ProviderOfferService
     public function offerCountIncrement(Order &$order): void
     {
             $order->increment('offer_count');
+    }
+
+    private function pushToFirebase(Offer $offer)
+    {
+        $firebaseService = new FirebaseNotificationService();
+        $user_id = $offer->order->user_id;
+        $firebaseService->sendNotificationToUser([$user_id],[],'New Offer','You have a new offer waiting for you');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\OrderStatusEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -92,10 +93,10 @@ class User extends Authenticatable implements Wallet,HasMedia
         return $this->hasMany(Order::class);
     }
 
-    public function device_tokens(): \Illuminate\Database\Eloquent\Relations\MorphMany
-    {
-        return $this->morphMany(DeviceToken::class,'userable');
-    }
+//    public function device_tokens(): \Illuminate\Database\Eloquent\Relations\MorphMany
+//    {
+//        return $this->morphMany(DeviceToken::class,'userable');
+//    }
 //
 //    public  function messengerColor(): Attribute
 //    {
@@ -106,5 +107,55 @@ class User extends Authenticatable implements Wallet,HasMedia
     public function conversations()
     {
         return $this->morphToMany(Conversation::class, 'user', 'conversation_members');
+    }
+
+    public function reviewsWritten(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewable');
+    }
+
+    public function reviewsReceived(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewed');
+    }
+
+    public function reviewStatistics()
+    {
+        return $this->morphOne(ReviewStatistic::class, 'reviewable')->withDefault(static function () {
+                return [
+                    'total_reviews' => 0,
+                    'average_rating' => 0.00,
+                    'completed_orders' => 0
+                ];
+            });
+    }
+
+    public function hasActiveOrders(): bool
+    {
+        return $this->orders()->where('status', OrderStatusEnum::ACCEPTED)->exists();
+    }
+
+    public function definition()
+    {
+        return $this->name . ' ( user )';
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return $this->name;
+    }
+
+    public function getShortNameAttribute(): string
+    {
+        return $this->name;
+    }
+
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+    public function deletionRequests()
+    {
+        return $this->morphMany(AccountDeletionRequest::class, 'deletable');
     }
 }

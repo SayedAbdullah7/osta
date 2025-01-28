@@ -2,10 +2,11 @@
 
 namespace App\Services;
 
+use App\Jobs\PushToSocketJob;
 use Illuminate\Support\Facades\Http;
-use Log;
+use Illuminate\Support\Facades\Log;
 
-class SocketService
+    class SocketService
 {
     private const TIMEOUT = 10;
     private const ROOM_PREFIX = '.users.';
@@ -15,35 +16,40 @@ class SocketService
     {
         $this->socketUrl = env('HTTP_SOCKET');
     }
-    public function push( $roomPrefix,$data, array$users, $event, $msg = null)
-    {
-//        if (!in_array($roomPrefix, ['user', 'provider'])) {
-//            throw new \InvalidArgumentException('Invalid room prefix. It should be either "users" or "providers".');
-//        }
-        $data = $data;
-        $msg = $msg;
-        $event = $event;
-//        $room = strtolower(env('APP_NAME')) ;
-        $room = env('APP_NAME') . '.'.$roomPrefix;
-
-        try {
-            $data = [
-                "room" => $room,
-//                "to" => $users,
-//                "to" => json_encode($users),
-                "to" => implode(',', $users),
-//                "to" => '{"Peter":35,"Ben":37,"Joe":43}',
-                "data" => json_encode($this->data($data, $msg, $event)),
-            ];
-            $response = Http::post($this->socketUrl, $data);
-
-            if ($response->successful()) {
-                return $response->body();
+        public function push($roomPrefix, $data, array $users, $event, $msg = null, $priority = null)
+        {
+            if (empty($roomPrefix) || empty($users) || empty($event)) {
+                throw new \InvalidArgumentException('Invalid parameters for socket push.');
             }
-        } catch (\Throwable $error) {
-            Log::error('Socket connection failed: ' . $error->getMessage());
+
+            PushToSocketJob::dispatch($roomPrefix, $data, $users, $event, $msg)
+                ->onQueue($priority ?? env('SOCKET_JOB_QUEUE', 'default'));
         }
-    }
+
+        public function sendToSocket($roomPrefix, $data, $users, $event, $msg = null)
+        {
+            $room = env('APP_NAME') . '.' . $roomPrefix;
+
+            try {
+                $payload = [
+                    "room" => $room,
+                    "to" => implode(',', $users),
+                    "data" => json_encode($this->data($data, $msg, $event)),
+                ];
+
+                Log::info('Sending data to socket', ['payload' => $payload]);
+                $response = Http::timeout(self::TIMEOUT)->retry(3, 100)->post($this->socketUrl, $payload);
+
+                if ($response->successful()) {
+                    Log::info('Socket response received', ['body' => $response->body()]);
+                    return $response->body();
+                }
+
+                Log::warning('Socket response failed', ['status' => $response->status(), 'body' => $response->body()]);
+            } catch (\Throwable $error) {
+                Log::error('Socket connection failed: ' . $error->getMessage());
+            }
+        }
 
     public function data($data, $msg, $event)
     {

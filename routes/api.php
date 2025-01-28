@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountDeletionRequestController;
 use App\Http\Controllers\Api\ProviderLocationController;
 use App\Http\Controllers\Api\User\DiscountCodeController;
 use App\Http\Controllers\Api\WalletController;
@@ -37,6 +38,7 @@ Route::middleware([])->group(function () {
         Route::post('generate-otp', [\App\Http\Controllers\Api\UserController::class, 'generateOTP']);
 
         Route::middleware('auth:user')->group(function () {
+            Route::post('contractor-requests', [\App\Http\Controllers\Api\ContractorRequestController::class, 'store']);
 
             Route::get('profile', [\App\Http\Controllers\Api\UserController::class, 'profile']);
             Route::post('update-profile', [\App\Http\Controllers\Api\UserController::class, 'update']);
@@ -46,6 +48,7 @@ Route::middleware([])->group(function () {
             //location
             Route::get('location', [\App\Http\Controllers\Api\LocationController::class, 'index']);
             Route::post('location', [\App\Http\Controllers\Api\LocationController::class, 'store']);
+            Route::delete('location/{id}', [\App\Http\Controllers\Api\LocationController::class, 'destroy']);
 
             //order
             Route::post('order', [\App\Http\Controllers\Api\User\OrderController::class, 'store']);
@@ -64,13 +67,24 @@ Route::middleware([])->group(function () {
 
 
             Route::post('/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);
+            Route::post('/skip-reviews', [\App\Http\Controllers\Api\ReviewController::class, 'skip']);
             Route::get('/providers/{providerId}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'getProviderReviews']);
+            Route::get('/my-reviews', [\App\Http\Controllers\Api\ReviewController::class, 'myReviews']);
 
             Route::get('banners', [\App\Http\Controllers\Api\UserController::class, 'banners']);
+            Route::get('home', [\App\Http\Controllers\Api\UserController::class, 'home']);
+            Route::post('setting', [\App\Http\Controllers\Api\UserController::class, 'setNotificationSetting']);
 
             Route::get('warranties', [\App\Http\Controllers\Api\WarrantyController::class, 'index']);
 
             Route::post('order/{orderId}/make-done/', [\App\Http\Controllers\Api\Provider\OrderController::class, 'updateOrderToDone']); // send offer for order
+
+            Route::post('order/{orderId}/pay', [\App\Http\Controllers\Api\InvoiceController::class, 'pay']);
+
+//            Route::patch('order/{orderId}/remove', [\App\Http\Controllers\Api\Provider\OrderController::class, 'remove']); // my orders for providers
+            Route::patch('order/{orderId}/cancel', [\App\Http\Controllers\Api\User\OrderController::class, 'cancelOrder']); // my orders for providers
+
+            Route::delete('delete', [AccountDeletionRequestController::class, 'destroy']);
 
         });
 
@@ -91,8 +105,9 @@ Route::middleware([])->group(function () {
         Route::post('generate-otp', [\App\Http\Controllers\Api\ProviderController::class, 'generateOTP']);
 
         Route::post('verify', [\App\Http\Controllers\Api\ProviderController::class, 'verify']);
+        Route::delete('delete', [AccountDeletionRequestController::class, 'destroy'])->middleware('auth:provider');
 
-        Route::middleware(['auth:provider','approved'])->group(function () {
+        Route::middleware(['auth:provider','approved','check-wallet-balance'])->group(function () {
             Route::get('subscription/available', [\App\Http\Controllers\Api\SubscriptionController::class, 'getLastActiveSubscription']);
             Route::post('subscription/{subscription}', [\App\Http\Controllers\Api\SubscriptionController::class, 'renewSubscription']);
             Route::get('subscription', [\App\Http\Controllers\Api\SubscriptionController::class, 'getCurrentSubscription']);
@@ -113,6 +128,7 @@ Route::middleware([])->group(function () {
             Route::get('order', [\App\Http\Controllers\Api\Provider\OrderController::class, 'getPendingOrders']); // for providers
 
             Route::get('my-orders', [\App\Http\Controllers\Api\Provider\OrderController::class, 'getProviderOrders']); // my orders for providers
+            Route::get('order/{order}/details', [\App\Http\Controllers\Api\Provider\OrderController::class, 'getOrderDetails']); // my orders for providers
 
 //            Route::patch('order/{order}/accept', [\App\Http\Controllers\Api\Provider\OrderController::class, 'accept']); // my orders for providers
 
@@ -127,6 +143,13 @@ Route::middleware([])->group(function () {
             Route::get('/levels', [\App\Http\Controllers\Api\ProviderStatisticController::class, 'level_index']);
 
             Route::get('banners', [\App\Http\Controllers\Api\UserController::class, 'banners']);
+
+            Route::post('setting', [\App\Http\Controllers\Api\UserController::class, 'setNotificationSetting']);
+
+            Route::post('/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);
+            Route::get('/users/{providerId}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'getUserReviews']);
+            Route::get('/my-reviews', [\App\Http\Controllers\Api\ReviewController::class, 'myReviews']);
+
 
         });
 
@@ -163,6 +186,7 @@ Route::middleware([])->group(function () {
     Route::get('service', [\App\Http\Controllers\Api\ServiceController::class, 'service_index']);
 
     Route::get('sub_service', [\App\Http\Controllers\Api\ServiceController::class, 'sub_service_index']);
+    Route::get('setting', [\App\Http\Controllers\Api\ServiceController::class, 'getSetting']);
 
     //chat
     Route::prefix('')->middleware(['auth:sanctum','approved'])->group(function () {
@@ -198,10 +222,10 @@ Route::middleware([])->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
 
-//        Route::post('/wallet/deposit', [WalletController::class, 'deposit']);
+        Route::post('/wallet/deposit', [WalletController::class, 'deposit']);
+        Route::post('/wallet/withdraw', [WalletController::class, 'withdraw']);
 //        Route::post('/wallet/withdraw', [WalletController::class, 'withdraw']);
-//        Route::post('/wallet/withdraw', [WalletController::class, 'withdraw']);
-//        Route::post('/wallet/transfer', [WalletController::class, 'transfer']);
+        Route::post('/wallet/transfer', [WalletController::class, 'transfer']);
     });
 
 

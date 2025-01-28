@@ -1,0 +1,51 @@
+<?php
+
+namespace App\DataTables;
+
+use App\Models\{{modelClass}};
+use Yajra\DataTables\Facades\DataTables;
+
+class {{modelClass}}DataTable
+{
+    /**
+     * Get the columns for the DataTable.
+     *
+     * @return array
+     */
+    public function columns()
+    {
+        return [
+            {{columns}}
+        ];
+    }
+
+    /**
+     * Get the filters for the DataTable.
+     *
+     * @return array
+     */
+    public function filters()
+    {
+        return [
+            {{filters}}
+        ];
+    }
+
+    /**
+     * Handle the DataTable data processing.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function handle()
+    {
+        $query = {{modelClass}}::query();
+
+        return DataTables::of($query)
+            {{addColumns}}
+            ->filter(function ($query) {
+                {{filterConditions}}
+            })
+            ->rawColumns(['actions'])
+            ->make(true);
+    }
+}

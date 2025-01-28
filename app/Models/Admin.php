@@ -33,4 +33,10 @@ class Admin extends Authenticatable implements Wallet
     protected $hidden = [
         'password',
         'remember_token',
-    ];}
+    ];
+
+    public function getShortNameAttribute(): string
+    {
+        return $this->name;
+    }
+}

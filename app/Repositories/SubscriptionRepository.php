@@ -24,7 +24,9 @@ class SubscriptionRepository
     public function getAllAvailableSubscriptions()
     {
         return Subscription::where('is_available', true)
-            ->with('level')
+            ->orderBy('id', 'desc')
+            ->take(1)
+//            ->with('level')
             ->get();
     }
 

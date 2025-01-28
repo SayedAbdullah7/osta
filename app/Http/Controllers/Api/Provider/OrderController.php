@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Http\Resources\LocationResource;
+use App\Http\Resources\OrderDetailResource;
 use App\Http\Resources\OrderResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Country;
@@ -199,9 +200,9 @@ class OrderController extends Controller
 
     public function updateOrderToDone(Request $request, $orderId): JsonResponse
     {
-        $request->validate([
-            'payment_method' => ['required', Rule::in(['cash', 'wallet'])],
-        ]);
+//        $request->validate([
+//            'payment_method' => ['required', Rule::in(['cash', 'wallet'])],
+//        ]);
 
         $provider = request()->user();
         $response = $this->orderService->updateOrderToDone($request, $orderId, $provider);
@@ -215,6 +216,18 @@ class OrderController extends Controller
         }
 
         return $this->respondSuccess($response['message']);
+    }
+
+    public function getOrderDetails(Request $request,$orderId): \Illuminate\Http\JsonResponse
+    {
+        $order = auth()->user()->orders()->where('id', $orderId)->first();
+
+        if (!$order) {
+            return $this->respondNotFound();
+        }
+        $orderDetails = $order->orderDetails;
+
+        return $this->respondWithResource(OrderDetailResource::collection($orderDetails), '');
     }
 
 }

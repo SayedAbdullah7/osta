@@ -11,7 +11,8 @@ use Laravel\Sanctum\HasApiTokens;
 use Bavix\Wallet\Traits\HasWallet;
 use Bavix\Wallet\Interfaces\Wallet;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-class Provider extends Authenticatable implements HasMedia,Wallet
+
+class Provider extends Authenticatable implements HasMedia, Wallet
 {
     use HasFactory;
     use InteractsWithMedia;
@@ -28,8 +29,9 @@ class Provider extends Authenticatable implements HasMedia,Wallet
 
     public function services(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Service::class,'provider_service');
+        return $this->belongsToMany(Service::class, 'provider_service');
     }
+
     public function city(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(City::class);
@@ -65,6 +67,7 @@ class Provider extends Authenticatable implements HasMedia,Wallet
     {
         $query->where('is_phone_verified', 1);
     }
+
     public function scopeNotVerified($query): void
     {
         $query->where('is_phone_verified', 0);
@@ -74,6 +77,7 @@ class Provider extends Authenticatable implements HasMedia,Wallet
     {
         return $this->is_phone_verified == 1;
     }
+
     public function changeToVerify(): void
     {
         $this->is_phone_verified = 1;
@@ -85,18 +89,18 @@ class Provider extends Authenticatable implements HasMedia,Wallet
     protected function name(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->first_name,
+            get: fn() => $this->first_name,
         );
     }
 
-    public function reviewStatistics()
-    {
-        return $this->hasOne(ProviderReviewStatistics::class)->withDefault([
-            'total_reviews' => 0,
-            'average_rating' => 0.00,
-            'completed_orders'=>0
-        ]);
-    }
+//    public function reviewStatistics()
+//    {
+//        return $this->hasOne(ProviderReviewStatistics::class)->withDefault([
+//            'total_reviews' => 0,
+//            'average_rating' => 0.00,
+//            'completed_orders'=>0
+//        ]);
+//    }
 
     public function reviews()
     {
@@ -131,4 +135,49 @@ class Provider extends Authenticatable implements HasMedia,Wallet
         return $this->hasOne(ProviderLocation::class);
     }
 
+    public function reviewsWritten(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewable');
+    }
+
+    public function reviewsReceived(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Review::class, 'reviewed');
+    }
+
+    public function reviewStatistics()
+    {
+        return $this->morphOne(ReviewStatistic::class, 'reviewable')->withDefault(static function () {
+            return (object)[
+                'total_reviews' => 0,
+                'average_rating' => '0',
+                'completed_orders' => 0
+            ];
+        });
+    }
+
+    public function definition()
+    {
+        return $this->first_name . ' ' . $this->last_name . ' ( provider )';
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return $this->first_name . ' ' . $this->last_name;
+    }
+
+    public function getShortNameAttribute(): string
+    {
+        return $this->name;
+    }
+
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
+    public function deletionRequests()
+    {
+        return $this->morphMany(AccountDeletionRequest::class, 'deletable');
+    }
 }

@@ -13,7 +13,10 @@ class Message extends Model implements HasMedia
     use InteractsWithMedia;
     public const ACTION_CONFIRM_ORDER = 'confirm_order';
     public const ACTION_ADDITIONAL_COST = 'additional_cost';
+    public const PURCHASES = 'purchases';
     public const ACTION_PAY = 'pay';
+    public const ACTION_CONVERT_TO_OFFER = 'convert_to_offer';
+    public const ACTION_CONVERT_TO_PREVIEW = 'convert_to_preview';
 
 //    protected $fillable = ['content', 'conversation_id', 'sender_id', 'sender_type'];
     protected $guarded = [];

@@ -32,32 +32,32 @@ class Offer extends Model
 //    }
     protected $guarded = [];
 //    public const LIFETIME = 2; // in minutes
-//    protected static function boot()
-//    {
-//        parent::boot();
-//
-//        static::creating(static function ($model) {
-//            if ($model->deleted_at === null) {
-//                $model->deleted_at = Carbon::now()->addMinutes(ProviderOfferService::MAX_OFFER_TIME);
-//            }
-//        });
-////        static::addGlobalScope('hasOrders', function (Builder $builder) {
-////            $builder->has('order');
-////        });
-//    }
-
-    protected static function booted()
+    protected static function boot()
     {
-        // Apply the global scope within the booted method
-        static::addGlobalScope('offersWithVisibleOrders', static function ($builder) {
-            if (Order::$applyRecentScope) {
-                // Apply the condition based on the Order model's static properties
-                $builder->whereHas('order', function ($query) {
-                    $query->where('created_at', '>=', Carbon::now()->subHours(Order::$recentDurationHours));
-                });
+        parent::boot();
+
+        static::creating(static function ($model) {
+            if ($model->deleted_at === null) {
+                $model->deleted_at = Carbon::now()->addMinutes(ProviderOfferService::MAX_OFFER_TIME);
             }
         });
+//        static::addGlobalScope('hasOrders', function (Builder $builder) {
+//            $builder->has('order');
+//        });
     }
+
+//    protected static function booted()
+//    {
+//        // Apply the global scope within the booted method
+//        static::addGlobalScope('offersWithVisibleOrders', static function ($builder) {
+//            if (Order::$applyRecentScope) {
+//                // Apply the condition based on the Order model's static properties
+//                $builder->whereHas('order', function ($query) {
+//                    $query->where('created_at', '>=', Carbon::now()->subHours(Order::$recentDurationHours));
+//                });
+//            }
+//        });
+//    }
 
     public function order()
     {
@@ -154,6 +154,11 @@ class Offer extends Model
     public function scopeIsFirst($query): Builder
     {
         return $query->where('is_second', 0);
+    }
+
+    public function scopeAccepted($query)
+    {
+        return $query->where('status', OfferStatusEnum::ACCEPTED);
     }
 
 

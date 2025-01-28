@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\SubscriptionServiceInterface;
 use App\Http\Resources\ProviderSubscriptionResource;
+use App\Http\Resources\SubscriptionResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
@@ -73,21 +74,25 @@ class SubscriptionController extends Controller
     public function getLastActiveSubscription()
     {
         try {
-            $lastActiveSubscription = $this->subscriptionService->getLastActiveSubscription();
-
-            if (!$lastActiveSubscription) {
-                return response()->json(['message' => 'No active subscription found'], 404);
-            }
+//            $lastActiveSubscription = $this->subscriptionService->getLastActiveSubscription();
+//
+//            if (!$lastActiveSubscription) {
+////                return response()->json(['message' => 'No active subscription found'], 404);
+//                $this->respondNotFound('No active subscription found');
+//
+//            }
 
             // Returning the subscription using a resource if needed
 //            return new SubscriptionResource($lastActiveSubscription);
-            return $this->respondWithResource(new \App\Http\Resources\SubscriptionResource($lastActiveSubscription));
+//            return $this->respondWithResource(new \App\Http\Resources\SubscriptionResource($lastActiveSubscription));
+
+            $allAvailableSubscriptions = $this->subscriptionService->getAllAvailableSubscriptions();
+            return $this->respondWithResource(SubscriptionResource::collection($allAvailableSubscriptions));
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to retrieve the last active subscription', 'error' => $e->getMessage()], 500);
         }
         $activeSubscriptions = $this->subscriptionService->getLastActiveSubscription();
         return $this->respondWithResource(new \App\Http\Resources\SubscriptionResource($activeSubscriptions));
-        return response()->json($activeSubscriptions);
     }
 
 
@@ -116,7 +121,7 @@ class SubscriptionController extends Controller
 //            return new ProviderSubscriptionResource($providerSubscription);
             return $this->respondWithResource(new \App\Http\Resources\ProviderSubscriptionResource($providerSubscription));
         } catch (\Exception $e) {
-            return  $this->respondNoContentResource('no active subscription found');
+            return  $this->respondSuccess('no active subscription found');
 //            return response()->json(['message' => 'No active subscription found'], 404);
         }
     }
@@ -136,10 +141,10 @@ class SubscriptionController extends Controller
         }
     }
 
-    public function getAllActiveSubscriptions()
-    {
-        $activeSubscriptions = $this->subscriptionService->getAllSubscriptions();
-        return response()->json($activeSubscriptions);
-    }
+//    public function getAllActiveSubscriptions()
+//    {
+//        $activeSubscriptions = $this->subscriptionService->getAllSubscriptions();
+//        return response()->json($activeSubscriptions);
+//    }
 
 }

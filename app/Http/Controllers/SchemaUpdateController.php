@@ -2,14 +2,55 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\UserDataTable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class SchemaUpdateController extends Controller
 {
+    public function users(UserDataTable $dataTable){
+        return $dataTable->render('users');
+    }
     public function updateSchema()
     {
+//        Schema::table('payments', static function (Blueprint $table) {
+//            $table->boolean('is_reviewed')->default(true);
+//
+//            // Foreign key to the admins table for creator_id
+//            $table->foreignId('creator_id')->constrained('admins')->onDelete('cascade');
+//
+//            // Foreign key to the admins table for reviewer_id
+//            $table->foreignId('reviewer_id')->constrained('admins')->onDelete('cascade');
+//        });
+        Schema::table('invoices', static function (Blueprint $table) {
+            $table->boolean('is_sent')->default(false)->after('order_id');
+        });
+        Schema::table('levels', static function (Blueprint $table) {
+            $table->unsignedInteger('percentage')->after('level');
+        });
+
+//        Schema::table('tickets', static function (Blueprint $table) {
+//            $table->enum('status', ['open', 'pending', 'closed'])->default('open')->change();
+//        });
+        Schema::table('orders', static function (Blueprint $table) {
+//            $table->foreignId('location_id') // Column name should be explicit (location_id)
+//            ->after('unknown_problem')// Only if you want to specify order
+//            ->nullable()               // Nullable constraint
+//            ->constrained('locations') // Explicitly mention the related table (optional, Laravel will infer it)
+//            ->nullOnDelete()   ;        // Set to null on delete of the related record
+            $table->string('location_name')->after('unknown_problem')->nullable();
+        });
+        Schema::table('reviews', static function (Blueprint $table) {
+            $table->boolean('is_approved')->default(false)->after('order_id');
+        });
+        Schema::table('reviews', static function (Blueprint $table) {
+            $table->boolean('is_approved')->default(false)->after('order_id');
+        });
+        Schema::table('orders', static function (Blueprint $table) {
+            $table->boolean('is_confirmed')->default(0)->after('status');
+        });
         Schema::table('orders', static function (Blueprint $table) {
             $table->boolean('is_confirmed')->default(0)->after('status');
         });

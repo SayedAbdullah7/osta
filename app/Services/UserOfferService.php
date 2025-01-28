@@ -159,6 +159,7 @@ class UserOfferService
         $this->updateOrderWithAcceptedOffer($offer);
         $this->createOrderConversation($offer);
         $this->pushAcceptedOfferToSocket($offer);
+        $this->pushAcceptedOfferToFirebase($offer);
     }
 
     /**
@@ -457,4 +458,10 @@ class UserOfferService
 ////    {
 ////
 ////    }
+    private function pushAcceptedOfferToFirebase(Offer $offer)
+    {
+        $firebaseService = new FirebaseNotificationService();
+        $provider_id = $offer->provider_id;
+        $firebaseService->sendNotificationToUser([],[],'Offer Accepted','Your offer has been accepted');
+    }
 }

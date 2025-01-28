@@ -67,7 +67,8 @@ class OrderRepository implements OrderRepositoryInterface
                 },
                 'offers.provider',
                 'media',
-                'offers.provider.reviewStatistics'
+                'offers.provider.reviewStatistics',
+                'providerReview',
             ])
             ->orderByDesc('id');
     }
@@ -167,8 +168,8 @@ class OrderRepository implements OrderRepositoryInterface
                     $query->pending()
                         ->orWhere(static function($query) {
                             $query
-                           ->rejected()
-                                ->IsSecond();
+                           ->rejected();
+//                                ->IsSecond(); nour  ask this update
                         });
                 });
         })->when(!empty($ids), static function ($query) use ($ids) {
@@ -208,7 +209,8 @@ class OrderRepository implements OrderRepositoryInterface
                 'user',
                 'service',
                 'orderSubServices',
-                'media'
+                'media',
+                'userReview',
             ])
             ->orderByDesc('id');
     }
@@ -371,7 +373,8 @@ class OrderRepository implements OrderRepositoryInterface
         $order->user_id = $user->id;
         $order->location_latitude = $data['location_latitude'];
         $order->location_longitude = $data['location_longitude'];
-        $order->location_desc = $data['location_desc'];
+        $order->location_desc = $data['location_desc']??'';
+        $order->location_name = $data['location_name'];
         $order->save();
 
         return $order;

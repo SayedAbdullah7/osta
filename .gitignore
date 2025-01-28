@@ -17,3 +17,10 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+/public/assets
+/Oldnode_modules
+/resources2
+/resources/view/
+public/uploads/
+public/assetsSp/
+public/images/

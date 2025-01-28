@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterUserRequest;
 use App\Http\Requests\UpdateUserRequest;
@@ -11,7 +12,11 @@ use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Location;
 use App\Models\Provider;
 use App\Models\User;
+use App\Models\UserAction;
+use App\Services\AccountDeletionService;
+use App\Services\FirebaseNotificationService;
 use App\Services\OTPService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -108,6 +113,8 @@ class UserController extends Controller
         $validatedData = $request->validate([
             'phone' => 'required|string|max:15',
             'otp' => 'required|string',
+            'firebase_token' => 'required|string', // Firebase token is required
+            'is_ios' => 'required|boolean', // Determine if the device is iOS
         ]);
 
         // Find the user
@@ -130,9 +137,26 @@ class UserController extends Controller
         // Clear the OTP after successful login
         OTPService::destroyOTPs($user);
 
+        // Handle Firebase token
+        DB::transaction(function () use ($user, $request) {
+            // Delete duplicate tokens
+            \App\Models\DeviceToken::where('token', $request->firebase_token)->orWhere('user_id', $user->id)->delete();
+
+            // Save the new token
+            \App\Models\DeviceToken::create([
+                'user_id' => $user->id,
+                'provider_id' => null, // Ensure this is null for users
+                'token' => $request->firebase_token,
+                'is_ios' => $request->input('is_ios', false),
+            ]);
+        });
+        AccountDeletionService::cancelDeletionRequest($user);
+
         // Create a new token for the user
         $token = $user->createToken('app-token')->plainTextToken;
         $user->token = $token;
+        AccountDeletionService::cancelDeletionRequest($user);
+
         return $this->respondWithResource(new UserResource($user), 'login successfully', 200);
     }
 
@@ -176,7 +200,9 @@ class UserController extends Controller
 
     public function profile(): \Illuminate\Http\JsonResponse
     {
-        $user = Auth::guard('user')->user()->load('country','media');
+        $user = Auth::guard('user')->user()->load('country','media','reviewStatistics')->loadCount(['orders' => function ($query) {
+            $query->where('status', OrderStatusEnum::DONE);
+        }]);
 
         return $this->respondWithResource(new UserResource($user), 'profile');
     }
@@ -254,6 +280,36 @@ class UserController extends Controller
         // Wrap the URLs in MediaResource collection
 //        return MediaResource::collection($imageUrls);
         return $this->respondWithResource(MediaResource::collection($imageUrls), 'banners');
+    }
+
+    public function home(): JsonResponse
+    {
+        $user= Auth::guard('user')->user();
+        $userAction = UserAction::getShowRateLastOrderForUser($user->id);
+        if ($userAction && $userAction->value == 1) {
+            $reviewOrder = $userAction->model_id;
+        } else {
+            $reviewOrder = null;
+        }
+        return $this->apiResponse(
+            [
+                'success' => true,
+                'result' => [
+                    'review_order_id' => $reviewOrder,
+                ],
+                'message' => ''
+            ], 200
+        );
+    }
+
+
+    public function setNotificationSetting(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $firebaseService = new FirebaseNotificationService();
+        $setNotificationSetting = $request->input('notification',false);
+        $firebaseService->setNotification($setNotificationSetting,$request->user());
+
+        return $this->respondSuccess('Notification setting updated successfully');
     }
 
 }
