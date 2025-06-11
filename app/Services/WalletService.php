@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\OrderPaidByUserEvent;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Admin;
 use App\Models\Invoice;
@@ -172,6 +173,9 @@ class WalletService
             $invoice->save();
         });
         $invoice->refresh();
+        if ($invoice->isFullyPaid()) {
+            event(new OrderPaidByUserEvent($order, $order->user));
+        }
         $socketService = new SocketService();
         $data = new InvoiceResource($invoice);
         $event = 'invoice_updated';
@@ -338,7 +342,8 @@ class WalletService
         $invoice->uuid = Str::uuid();
         $invoice->details = [
             'service' => $order->service->name,
-            'worker' => $order->provider->first_name . ' ' . $order->provider->last_name,
+            'worker' => $order->provider->name,
+//            'worker' => $order->provider->first_name . ' ' . $order->provider->last_name,
             'working_in_minutes' => '',
             'order_created_at' => $order->created_at,
             'offer_price' => $order->getOfferPrice(),

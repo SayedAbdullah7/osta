@@ -8,6 +8,14 @@ use Illuminate\Support\Facades\Auth;
 
 class MessageResource extends JsonResource
 {
+    protected mixed $userId;
+
+    public function __construct($resource, $userId = null)
+    {
+        parent::__construct($resource);
+        $this->userId = $userId;
+    }
+
     /**
      * Transform the resource into an array.
      *
@@ -19,7 +27,7 @@ class MessageResource extends JsonResource
             'id' => $this->id,
             'content' => $this->content??'',
             'sender_id' => $this->sender_id,
-            'is_sender' => $this->sender_id === Auth::id(),  // Check if authenticated user is the sender
+            'is_sender' => $this->sender_id === $this->userId,  // Check if authenticated user is the sender
             'short_name' => $this->sender?->short_name,  // Assuming you have a sender relationship
 //            'media' => $this->media->map(function ($media) {
 //                return [

@@ -88,12 +88,13 @@ class ProviderController extends Controller
     protected function createProvider(Request $request): Provider
     {
         $provider = new Provider();
-        $provider->first_name = $request->input('first_name');
-        $provider->last_name = $request->input('last_name');
+        $provider->name = $request->input('name');
+//        $provider->first_name = $request->input('first_name');
+//        $provider->last_name = $request->input('last_name');
         $provider->phone = $request->input('phone');
         $provider->email = $request->input('email');
         $provider->gender = $request->input('gender') == "male" ? 1 : 0;
-        $provider->country_id = $request->input('country_id');
+        $provider->country_id = $request->input('country_id',1);
         $provider->city_id = $request->input('city_id');
         $provider->save();
 
@@ -190,7 +191,8 @@ class ProviderController extends Controller
 
         DB::transaction(function () use ($provider, $request) {
             // Delete duplicate tokens
-            \App\Models\DeviceToken::where('token', $request->firebase_token)->orWhere('provider_id', $provider->id)->delete();
+//            \App\Models\DeviceToken::where('token', $request->firebase_token)->orWhere('provider_id', $provider->id)->delete();
+            \App\Models\DeviceToken::where('token', $request->firebase_token)->delete();
 
             // Save the new token
             \App\Models\DeviceToken::create([
@@ -281,9 +283,12 @@ class ProviderController extends Controller
     }
     protected function updateProviderModel(Provider $provider, $request): void
     {
-        if ($request->has('first_name')) {
-            $provider->first_name = $request->input('first_name');
+        if ($request->has('name')) {
+            $provider->name = $request->input('name');
         }
+//        if ($request->has('first_name')) {
+//            $provider->first_name = $request->input('first_name');
+//        }
 
         if ($request->has('last_name')) {
             $provider->last_name = $request->input('last_name');
@@ -318,9 +323,21 @@ class ProviderController extends Controller
             [
                 'success' => true,
                 'result' => [
-                    'total_completed_orders_today' => $this->getTotalCompletedOrdersToday(),
+                    'today' => [
+                        'completed_orders' => $this->getTotalCompletedOrdersToday(),
+                        'earnings' => $this->getTotalEarningsToday(),
+                    ],
+                    'week' => [
+                        'completed_orders' => $this->getTotalCompletedOrdersThisWeek(),
+                        'earnings' => $this->getTotalEarningsThisWeek(),
+                    ],
+                    'month' => [
+                        'completed_orders' => $this->getTotalCompletedOrdersThisMonth(),
+                        'earnings' => $this->getTotalEarningsThisMonth(),
+                    ],
+//                    'total_completed_orders_today' => $this->getTotalCompletedOrdersToday(),
                     // erring form orders
-                    'total_erring_form_completed_orders_today' => $this->getTotalErringFormOrdersCompletedToday(),
+//                    'total_erring_form_completed_orders_today' => $this->getTotalErringFormOrdersCompletedToday(),
                     'unpaid_invoice' => $this->getPendingInvoices(),
 
                 ],
@@ -329,22 +346,93 @@ class ProviderController extends Controller
         );
     }
 
-    private function getTotalCompletedOrdersToday()
+//    private function getTotalCompletedOrdersToday()
+//    {
+//        return Order::where('provider_id', Auth::guard('provider')->user()->id)
+//            ->where('status', OrderStatusEnum::DONE)
+//            ->whereDate('created_at', today())
+//            ->count();
+//    }
+//    private function getTotalErringFormOrdersCompletedToday()
+//    {
+//        return Invoice::whereHas('order', function ($q) {
+//            $q->where('provider_id', Auth::guard('provider')->user()->id)
+//                ->where('status', OrderStatusEnum::DONE)
+//                ->whereDate('updated_at', today());
+//        })->sum('provider_earning');
+//    }
+    private function getOrderStatsByPeriod(string $period)
     {
-        return Order::where('provider_id', Auth::guard('provider')->user()->id)
-            ->where('status', OrderStatusEnum::DONE)
-            ->whereDate('created_at', today())
-            ->count();
-    }
-    private function getTotalErringFormOrdersCompletedToday()
-    {
-        return Invoice::whereHas('order', function ($q) {
-            $q->where('provider_id', Auth::guard('provider')->user()->id)
-                ->where('status', OrderStatusEnum::DONE)
-                ->whereDate('updated_at', today());
-        })->sum('provider_earning');
+        $query = Order::where('provider_id', Auth::guard('provider')->user()->id)
+            ->where('status', OrderStatusEnum::DONE);
+
+        switch ($period) {
+            case 'day':
+                $query->whereDate('created_at', today());
+                break;
+            case 'week':
+                $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+                break;
+            case 'month':
+                $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                break;
+        }
+
+        return $query->count();
     }
 
+    private function getEarningsStatsByPeriod(string $period)
+    {
+        $query = Invoice::whereHas('order', function ($q) use ($period) {
+            $q->where('provider_id', Auth::guard('provider')->user()->id)
+                ->where('status', OrderStatusEnum::DONE);
+
+            switch ($period) {
+                case 'day':
+                    $q->whereDate('updated_at', today());
+                    break;
+                case 'week':
+                    $q->whereBetween('updated_at', [now()->startOfWeek(), now()->endOfWeek()]);
+                    break;
+                case 'month':
+                    $q->whereBetween('updated_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                    break;
+            }
+        });
+
+        return $query->sum('provider_earning');
+    }
+
+// Public methods for each time period
+    public function getTotalCompletedOrdersToday()
+    {
+        return $this->getOrderStatsByPeriod('day');
+    }
+
+    public function getTotalCompletedOrdersThisWeek()
+    {
+        return $this->getOrderStatsByPeriod('week');
+    }
+
+    public function getTotalCompletedOrdersThisMonth()
+    {
+        return $this->getOrderStatsByPeriod('month');
+    }
+
+    public function getTotalEarningsToday()
+    {
+        return $this->getEarningsStatsByPeriod('day');
+    }
+
+    public function getTotalEarningsThisWeek()
+    {
+        return $this->getEarningsStatsByPeriod('week');
+    }
+
+    public function getTotalEarningsThisMonth()
+    {
+        return $this->getEarningsStatsByPeriod('month');
+    }
     public function getPendingInvoices()
     {
         $providerId = Auth::guard('provider')->user()->id;
@@ -369,6 +457,17 @@ class ProviderController extends Controller
         $firebaseService->setNotification($setNotificationSetting,$request->user());
 
         return $this->respondSuccess('Notification setting updated successfully');
+    }
+
+
+    public function markAsNotNew()
+    {
+        $provider = Auth::guard('provider')->user();
+        if ($provider->is_new) {
+            $provider->is_new = false;
+            $provider->save();
+        }
+        return $this->respondSuccess('Provider marked as not new');
     }
 
 }

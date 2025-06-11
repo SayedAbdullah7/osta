@@ -140,7 +140,8 @@ class UserController extends Controller
         // Handle Firebase token
         DB::transaction(function () use ($user, $request) {
             // Delete duplicate tokens
-            \App\Models\DeviceToken::where('token', $request->firebase_token)->orWhere('user_id', $user->id)->delete();
+            \App\Models\DeviceToken::where('token', $request->firebase_token)->delete();
+//            \App\Models\DeviceToken::where('token', $request->firebase_token)->orWhere('user_id', $user->id)->delete();
 
             // Save the new token
             \App\Models\DeviceToken::create([

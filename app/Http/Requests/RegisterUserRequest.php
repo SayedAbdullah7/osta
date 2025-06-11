@@ -16,7 +16,7 @@ class RegisterUserRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'email' => ['email', 'max:255', Rule::unique('users')->where(function ($query) {
+            'email' => ['nullable','email', 'max:255', Rule::unique('users')->where(function ($query) {
                 return $query->where('is_phone_verified', 1); //use scope
             }),],
             'phone' => [

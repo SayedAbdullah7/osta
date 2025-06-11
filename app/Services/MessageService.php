@@ -133,6 +133,7 @@ class MessageService
     public function applyCrearteMessage($conversation, $content, $senderId, $senderType, $media = null, $options = [], $orderId = null): \App\Models\Message
     {
         $conversationId = $conversation->id;
+        dispatch(fn() => $this->socketService->push('user', $data, $users, $event, $msg));
 
         $message = $this->messageRepository->createMessage($conversationId, $content, $senderId, $senderType, $options,$orderId);
 //        Storage::put('message1.json', json_encode([$message]));

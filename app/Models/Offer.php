@@ -37,9 +37,9 @@ class Offer extends Model
         parent::boot();
 
         static::creating(static function ($model) {
-            if ($model->deleted_at === null) {
-                $model->deleted_at = Carbon::now()->addMinutes(ProviderOfferService::MAX_OFFER_TIME);
-            }
+//            if ($model->deleted_at === null) {
+//                $model->deleted_at = Carbon::now()->addMinutes(ProviderOfferService::MAX_OFFER_TIME);
+//            }
         });
 //        static::addGlobalScope('hasOrders', function (Builder $builder) {
 //            $builder->has('order');

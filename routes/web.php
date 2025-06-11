@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\ServiceCreated;
 use App\Helpers\Filter;
 use App\Http\Controllers\Api\Provider\OfferController;
 use App\Http\Controllers\ConversationController;
@@ -12,7 +13,14 @@ use App\Models\Service;
 use App\Models\SpaceSubService;
 use App\Models\SubService;
 use App\Models\Warranty;
+use App\Notifications\Channels\DatabaseChannel;
+use App\Notifications\Channels\FirebaseChannel;
+use App\Notifications\Channels\SocketChannel;
+use App\Notifications\MyCustomNotification;
 use App\Services\FirebaseNotificationService;
+use App\Services\NotificationManager;
+use App\Services\NotificationService;
+use App\Services\SocketService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +36,67 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+Route::get('/socket', function () {
+    $order = \App\Models\Order::first();
+    return event(new \App\Events\NewOrderCreated($order));
+});
+Route::get('/MyCustomNotification', function () {
+    $user = auth()->user();
+    $user = \App\Models\User::find(2);
+    $orderId = 1;
+//    $notification = new MyCustomNotification("Client {$user->name} has fully paid Order #{$orderId}.");
+//
+//    // Instantiate channels with the proper service dependencies.
+    $notificationService = new NotificationService();
+    $databaseChannel     = new DatabaseChannel($notificationService);
 
+    $firebaseService     = new FirebaseNotificationService();
+    $firebaseChannel     = new FirebaseChannel($firebaseService);
+
+    $socketService       = new SocketService();
+    $socketChannel       = new SocketChannel($socketService);
+
+    // Create an instance of your notification.
+    $notification = new MyCustomNotification('This is your notification message!');
+//
+//    // Instantiate the notification manager and add channels.
+    $notificationManager = new NotificationManager();
+//    $notificationService = new NotificationService();
+//    $notificationManager->addChannel(new DatabaseChannel($notificationService));
+//
+//    // Build the notification manager and add channels.
+//    $notificationManager = new NotificationManager();
+//    $notificationManager->addChannel($databaseChannel);
+//    $notificationManager->addChannel($firebaseChannel);
+//    $notificationManager->addChannel($socketChannel);
+//
+//    // Optionally, specify which channels to use.
+//    $channelsToUse = ['DatabaseChannel', 'FirebaseChannel', 'SocketChannel'];
+
+    // Send the notification.
+    $notificationManager->send($user, $notification);
+//    $notificationManager->send($user, $notification, $channelsToUse);
+    return 'done';
+    // Inject the Firebase Messaging service via Laravel's service container.
+//    $notificationManager->addChannel(new FirebaseChannel(app(\Kreait\Firebase\Messaging::class)));
+    // Use your SocketService in the SocketChannel.
+    $socketService = new SocketService();
+    $notificationManager->addChannel(new SocketChannel($socketService));
+
+    // Optionally, specify which channels to use (by alias/class basename).
+    // For instance, if you only want to use the Database and Firebase channels:
+//    $channelsToUse = ['DatabaseChannel', 'FirebaseChannel', 'SocketChannel'];
+    $channelsToUse = ['DatabaseChannel', 'SocketChannel'];
+
+    // Send the notification.
+    return $notificationManager->send($user, $notification, $channelsToUse);
+
+});
+Route::get('/push-notification-for-user', function () {
+    $service = App\Models\Service::inRandomOrder()->first();
+    event(new ServiceCreated($service));
+
+});
 Route::get('/update-service', function () {
     $serviceData = [
         [

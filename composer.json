@@ -24,6 +24,7 @@
         "laravel/telescope": "^4.17",
         "laravel/tinker": "^2.8",
         "livewire/livewire": "^3.5",
+        "predis/predis": "^3.0",
         "stephenjude/filament-debugger": "^2.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
         "yajra/laravel-datatables": "^10.1",

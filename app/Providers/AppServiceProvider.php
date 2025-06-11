@@ -35,7 +35,23 @@ class AppServiceProvider extends ServiceProvider
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);
         }
+        $this->app->singleton(\App\Services\FirebaseNotificationService::class, function ($app) {
+            return new \App\Services\FirebaseNotificationService();
+        });
 
+        $this->app->singleton(\App\Services\SocketService::class, function ($app) {
+            return new \App\Services\SocketService();
+        });
+
+        // Optionally, bind the NotificationManager itself if needed.
+        $this->app->singleton(\App\Services\NotificationManager::class, function ($app) {
+            $manager = new \App\Services\NotificationManager();
+            // Automatically add default channels.
+            $manager->addChannel(new \App\Notifications\Channels\DatabaseChannel($app->make(\App\Services\NotificationService::class)));
+            $manager->addChannel(new \App\Notifications\Channels\FirebaseChannel($app->make(\App\Services\FirebaseNotificationService::class)));
+            $manager->addChannel(new \App\Notifications\Channels\SocketChannel($app->make(\App\Services\SocketService::class)));
+            return $manager;
+        });
 
 
 

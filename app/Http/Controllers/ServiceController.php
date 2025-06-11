@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\DataTables\ServiceDataTable;
+use App\Events\ServiceCreated;
 use App\Http\Requests\StoreServiceRequest;
 use App\Http\Requests\UpdateServiceRequest;
 use App\Models\Service;
@@ -54,6 +55,7 @@ class ServiceController extends Controller
         if (!$imageUploaded) {
             return response()->json(['status' => false, 'msg' => 'الصورة غير موجودة في المسار المحدد.']);
         }
+        event(new ServiceCreated($service));
 
         return response()->json(['status' => true, 'msg' => 'تم الحفظ بنجاح']);
     }

@@ -16,12 +16,15 @@ class ProviderResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'first_name' => $this->first_name,
-            'last_name' => $this->last_name,
+            'name' => $this->name,
+//            'first_name' => $this->first_name,
+//            'last_name' => $this->last_name,
             'phone' => $this->phone,
             'email' => $this->email,
             'is_phone_verified' => (bool)$this->is_phone_verified,
             'is_approved' => (bool)$this->is_approved,
+            'is_new' => (bool)$this->is_new,
+
 //            'country_id' => $this->country_id,
 //            'city_id' => $this->city_id,
             'country' => new CountryResource($this->country),

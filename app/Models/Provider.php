@@ -20,7 +20,14 @@ class Provider extends Authenticatable implements HasMedia, Wallet
     use HasWallet;
 
     protected $guarded = [];
-
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+//    protected $casts = [
+//        'is_new' => 'boolean',
+//    ];
 
     public function getGenderLabelAttribute(): string
     {
@@ -86,12 +93,12 @@ class Provider extends Authenticatable implements HasMedia, Wallet
     /**
      * Get the user's first name.
      */
-    protected function name(): Attribute
-    {
-        return Attribute::make(
-            get: fn() => $this->first_name,
-        );
-    }
+//    protected function name(): Attribute
+//    {
+//        return Attribute::make(
+//            get: fn() => $this->first_name,
+//        );
+//    }
 
 //    public function reviewStatistics()
 //    {
@@ -158,11 +165,13 @@ class Provider extends Authenticatable implements HasMedia, Wallet
 
     public function definition()
     {
-        return $this->first_name . ' ' . $this->last_name . ' ( provider )';
+        return $this->name . ' ( provider )';
+//        return $this->first_name . ' ' . $this->last_name . ' ( provider )';
     }
 
     public function getFullNameAttribute(): string
     {
+        return $this->name;
         return $this->first_name . ' ' . $this->last_name;
     }
 

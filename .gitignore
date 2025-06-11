@@ -24,3 +24,4 @@ yarn-error.log
 public/uploads/
 public/assetsSp/
 public/images/
+/socket-server/node_modules

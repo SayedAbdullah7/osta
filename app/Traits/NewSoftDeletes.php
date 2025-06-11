@@ -41,7 +41,7 @@ trait NewSoftDeletes
         $this->save();
     }
 
-    public function delete()
+    public function softDelete()
     {
         $this->deleted_at = Carbon::now();
         $this->save();

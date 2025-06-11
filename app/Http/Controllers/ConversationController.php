@@ -7,6 +7,7 @@ use App\DataTables\Custom\TicketDataTable;
 use App\Http\Resources\Dashboard\MessageResource;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Order;
 use App\Models\Ticket;
 use App\Services\MessageService;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class ConversationController extends Controller
             Auth::loginUsingId(1); // Assuming admin ID 1 is a valid admin
         }
     }
+
     /**
      * Display a listing of the resource.
      */
@@ -36,25 +38,45 @@ class ConversationController extends Controller
             'filters' => $dataTable->filters(),
         ]);
     }
-    public function getConversation($id)
+
+    public function getConversation(Request $request, $id)
     {
-        $user = Auth::user();
-        $ticket = Ticket::with('user','conversation')->find($id);
+        $isOrderChat = $request->input('type') == 'order';
+        if ($isOrderChat) {
+            $order = Order::find($id);
+            $conversation = $order->conversation;
+            $conversation->user_id = $order->user_id;
+            $conversation->provider_id = $order->provider_id;
+//            $conversation = Conversation::where('model_id', $id)->first();
+            return response()->json($conversation);
+
+        } else {
+            $user = Auth::user();
+            $ticket = Ticket::with('user', 'conversation')->find($id);
 //        $conversation = Conversation::find(217);
 //        $ticket->setRelation('conversation', $conversation);
-        if (!$ticket->name) {
-            $ticket->name = 'Ticket #'.$ticket->id;
-        }
-        $ticket->short_name = $ticket->user->short_name;
+            if (!$ticket->name) {
+                $ticket->name = 'Ticket #' . $ticket->id;
+            }
+            $ticket->short_name = $ticket->user->short_name;
 
-        return response()->json($ticket);
+            return response()->json($ticket);
+        }
     }
 
-    public function getMessages($conversationId)
+    public function getMessages(Request $request, $conversationId)
     {
         $messages = Message::with('media', 'sender')->where('conversation_id', $conversationId)
             ->get();
-        $data = MessageResource::collection($messages);
+        if($request->input('user_id')){
+            $userId = $request->input('user_id');
+        }else{
+            $userId = Auth::id();
+        }
+//        $data = MessageResource::collection($messages)->additional(['user_id' => $userId]);
+        $data = MessageResource::collection($messages->map(function ($message) use ($userId) {
+            return new MessageResource($message, $userId);
+        }));
         return response()->json($data);
     }
 
@@ -105,7 +127,7 @@ class ConversationController extends Controller
      */
     public function edit(Ticket $ticket)
     {
-        return view('pages.conversation.form',['model' => $ticket]);
+        return view('pages.conversation.form', ['model' => $ticket]);
     }
 
     /**

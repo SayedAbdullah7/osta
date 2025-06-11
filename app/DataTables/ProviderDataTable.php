@@ -65,6 +65,7 @@ class ProviderDataTable extends DataTable
     {
         return [
             Column::make('id')->title('ID'),
+            Column::make('name')->title('Name'),
             Column::make('first_name')->title('First Name'),
             Column::make('last_name')->title('Last Name'),
             Column::make('phone')->title('Phone'),

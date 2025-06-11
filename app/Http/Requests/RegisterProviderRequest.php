@@ -27,8 +27,9 @@ class RegisterProviderRequest extends FormRequest
             'email' => ['nullable','email', 'max:255', Rule::unique('providers')->where(function ($query) {
                 return $query->where('is_phone_verified', 1); //use scope
             }),],
-            'first_name' => 'required|string|max:15',
-            'last_name' => 'required|string|max:15',
+//            'first_name' => 'required|string|max:15',
+//            'last_name' => 'required|string|max:15',
+            'name' => 'required|string|max:50',
             'phone' => [
                 'required',
                 'string',
@@ -38,9 +39,9 @@ class RegisterProviderRequest extends FormRequest
                 }),
             ],
             'gender' => 'required|in:male,female',
-            'is_phone_verified' => 'boolean',
+//            'is_phone_verified' => 'boolean',
 //            'password' => 'required|string|confirmed|min:8',
-            'country_id' => 'required|exists:countries,id',
+//            'country_id' => 'required|exists:countries,id',
             'city_id' => 'required|exists:cities,id',
 //            'personal' => 'required|image|mimes:jpeg,png,jpg|max:5120',
 //            'front_id' => 'required|image|mimes:jpeg,png,jpg|max:5120',

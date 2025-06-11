@@ -27,7 +27,8 @@ class ServiceController extends Controller
     {
 //        $response = Cache::rememberForever('services', function () {
 //            return Service::all();
-            return $this->respondWithResource(ServiceResource::collection(Service::all()), '');
+//            return $this->respondWithResource(ServiceResource::collection(Service::all()), '');
+            return $this->respondWithResource(ServiceResource::collection(Service::whereNot('category',OrderCategoryEnum::Other)->get()), '');
 
 //        });
         return $response;

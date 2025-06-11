@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountDeletionRequestController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProviderLocationController;
 use App\Http\Controllers\Api\User\DiscountCodeController;
 use App\Http\Controllers\Api\WalletController;
@@ -113,6 +114,8 @@ Route::middleware([])->group(function () {
             Route::get('subscription', [\App\Http\Controllers\Api\SubscriptionController::class, 'getCurrentSubscription']);
 
             Route::post('/live-location', [ProviderLocationController::class, 'store']);
+            Route::post('/withdrawal/request', [\App\Http\Controllers\WithdrawalRequestController::class, 'requestWithdrawal']);
+            Route::get('/withdrawal/request', [\App\Http\Controllers\WithdrawalRequestController::class, 'index']);
 
 
             Route::get('profile', [\App\Http\Controllers\Api\ProviderController::class, 'profile']);
@@ -149,6 +152,8 @@ Route::middleware([])->group(function () {
             Route::post('/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store']);
             Route::get('/users/{providerId}/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'getUserReviews']);
             Route::get('/my-reviews', [\App\Http\Controllers\Api\ReviewController::class, 'myReviews']);
+
+            Route::patch('mark-as-not-new', [\App\Http\Controllers\Api\ProviderController::class, 'markAsNotNew']);
 
 
         });
@@ -216,6 +221,11 @@ Route::middleware([])->group(function () {
         Route::post('/ticket/{ticket}/message', [\App\Http\Controllers\Api\TicketController::class, 'storeMessage']);
 
         Route::get('/social-media', [GeneralController::class, 'getSocialMediaLinks']);
+
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     });
 

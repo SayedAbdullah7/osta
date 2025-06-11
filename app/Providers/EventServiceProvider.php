@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\OrderPaidByUserEvent;
+use App\Listeners\OrderPaidByUserListener;
 use App\Models\Provider;
 use App\Observers\ProviderObserver;
 use Illuminate\Auth\Events\Registered;
@@ -19,6 +21,16 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+        ],
+        \App\Events\ServiceCreated::class => [
+//            \App\Listeners\NotifyProvidersOfNewService::class,
+            \App\Listeners\NotifyUsersOfNewService::class,
+        ],
+        OrderPaidByUserEvent::class => [
+            OrderPaidByUserListener::class,
+        ],
+        \App\Events\ProviderLevelUp::class => [
+            \App\Listeners\SendLevelUpNotification::class,
         ],
     ];
 

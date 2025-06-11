@@ -22,6 +22,7 @@ class ServiceResource extends JsonResource
 //            'max_price' => $this->max_price,
             'category' => $this->category,
             'image' => $this->getFirstMediaUrl('default', 'thumb'),
+            'warranty' => true,
 //            'image_url' => $this->when($this->hasMedia('images'), $this->getFirstMediaUrl('images')),
         ];
 

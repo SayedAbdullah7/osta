@@ -58,8 +58,9 @@ class ProviderController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:15',
-            'last_name' => 'required|string|max:15',
+            'name' => 'required|string|max:50',
+//            'first_name' => 'required|string|max:15',
+//            'last_name' => 'required|string|max:15',
             'phone' => 'required|string|max:15|unique:providers,phone',
             'email' => 'nullable|email|unique:providers,email',
             'gender' => 'required|boolean',
@@ -68,8 +69,9 @@ class ProviderController extends Controller
         ]);
 
         $provider = new Provider();
-        $provider->first_name = $validated['first_name'];
-        $provider->last_name = $validated['last_name'];
+        $provider->name = $validated['name'];
+//        $provider->first_name = $validated['first_name'];
+//        $provider->last_name = $validated['last_name'];
         $provider->phone = $validated['phone'];
         $provider->email = $validated['email'] ?? null;
         $provider->gender = $validated['gender'];
@@ -104,8 +106,9 @@ class ProviderController extends Controller
     public function update(Request $request, Provider $provider)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:15',
-            'last_name' => 'required|string|max:15',
+            'name' => 'required|string|max:50',
+//            'first_name' => 'required|string|max:15',
+//            'last_name' => 'required|string|max:15',
             'phone' => 'required|string|max:15|unique:providers,phone,' . $provider->id,
             'email' => 'nullable|email|unique:providers,email,' . $provider->id,
             'gender' => 'required|boolean',
@@ -115,8 +118,9 @@ class ProviderController extends Controller
         ]);
 
 
-        $provider->first_name = $validated['first_name'];
-        $provider->last_name = $validated['last_name'];
+        $provider->name = $validated['name'];
+//        $provider->first_name = $validated['first_name'];
+//        $provider->last_name = $validated['last_name'];
         $provider->phone = $validated['phone'];
         $provider->email = $validated['email'] ?? null;
         $provider->gender = $validated['gender'];

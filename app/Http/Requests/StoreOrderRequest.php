@@ -30,7 +30,7 @@ class StoreOrderRequest extends FormRequest
         return [
             'unknown_problem' => 'boolean',
             'category' => ['required', Rule::enum(OrderCategoryEnum::class)],
-            'space' => 'required_if:category,' . OrderCategoryEnum::SpaceBased->value . '|max:15',
+//            'space' => 'required_if:category,' . OrderCategoryEnum::SpaceBased->value . '|max:15',
 //            'start' => 'required|date_format:Y-m-d H:i',
 //            'end' => 'nullable|date_format:Y-m-d H:i',
             'warranty_id' => ['nullable', Rule::enum(OrderWarrantyEnum::class)],

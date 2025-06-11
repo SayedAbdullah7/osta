@@ -45,7 +45,7 @@ class ConverstionResource extends JsonResource
                 return $this->providers->map(function ($provider) {
                     return [
                         'id' => $provider->id,
-                        'name' => $provider->first_name,
+                        'name' => $provider->name,
                         'phone' => $provider->phone,
                         'personal_media_url' => $provider->getFirstMediaUrl('personal'),
                     ];

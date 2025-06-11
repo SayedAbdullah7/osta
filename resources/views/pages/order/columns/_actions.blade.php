@@ -43,7 +43,7 @@
        data-action="{{route('order.edit', [$model->id])}}">
         <i class="fa-solid fa-pen-to-square"></i>
     </a>
-    <a href="#" class=" openChat btn btn-icon btn-light-info me-5 " data-ticket-id="{{$model->id}}"
+    <a href="#" class=" openChat btn btn-icon btn-light-info me-5 " data-type="order" data-order-id="{{$model->id}}"
        data-action="{{route('user.edit', [$model->id])}}">
         <i class="fa-solid fa-headset"></i>
     </a>

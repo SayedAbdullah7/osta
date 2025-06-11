@@ -25,7 +25,7 @@ class ProviderDataTable extends BaseDataTable
     {
         return [
             Column::create('id'),
-            Column::create('first_name'),
+            Column::create('name'),
             Column::create('last_name'),
             Column::create('phone'),
 //            Column::create('is_phone_verified'),

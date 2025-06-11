@@ -34,8 +34,9 @@ class UpdateProviderRequest extends FormRequest
                 'max:255',
                 Rule::unique('providers')->ignore($providerId),
             ],
-            'first_name' => 'sometimes|string|max:15',
-            'last_name' => 'sometimes|string|max:15',
+            'name' => 'sometimes|string|max:50',
+//            'first_name' => 'sometimes|string|max:15',
+//            'last_name' => 'sometimes|string|max:15',
 //            'phone' => [
 //                'nullable',
 //                'string',

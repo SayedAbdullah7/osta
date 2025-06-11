@@ -1,49 +1,100 @@
 <?php
-
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
+use App\Events\NotificationCreated;
+use App\Jobs\SendNotificationJob;
+use App\Models\Notification;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Model;
 
 class NotificationService
 {
     /**
-     * Send notifications to one or more FCM tokens.
+     * Create a notification for a notifiable entity and dispatch a job to send it.
      *
-     * @param array|string $fcmTokens
-     * @param string $title
-     * @param string $message
-     * @return string
+     * @param Model $notifiable  (User or Provider)
+     * @param  string  $title
+     * @param  string  $message
+     * @param  string  $type
+     * @return Notification
      */
-    public static function sendNotification(array|string $fcmTokens, string $title, string $message)
+    public function createNotification(Model $notifiable, string $title, string $message, string $type): Notification
     {
-        $authKey = 'AAAAFwRRSB8:APA91bFxbzfo4Cfd0bIrn3YNu77It4mnrljU79QxiBcihFRcUqqbRrOFPSmONxbBD6xvUZLhFMbAwtnfNZ9ZdpptKUleZxLLoqfmHaqa_XEaHFddlgED_Xsc1BIZvJ-j-K3CEsvX4Eeb';
-
-//        $fcmTokens = DeviceToken::
-        $fcmTokens = 'el950rllROSaTZtpSJMBeh:APA91bF52Vi-r6SWgdl6sNkIMxHhy-PDF23adZnpOyOUlTUXHB7t3b0C1b96LyE3uk7JqVvCWXyC5JdP5ui0NpRUmpCh8rirRhOakcLquOaxuvn6JDMZtBlWqAHNx75wbYd75uel5nbP';
-
-        $response = Http::withHeaders([
-            'Authorization' => 'key=' . $authKey,
-            'Content-Type' => 'application/json',
-        ])->post('https://fcm.googleapis.com/fcm/send', [
-            'registration_ids' => is_array($fcmTokens) ? $fcmTokens : [$fcmTokens],
-            'notification' => [
-                'title' => $title,
-                'body' => $message,
-            ],
+        // Create the notification using polymorphic fields.
+        $notification = Notification::create([
+            'notifiable_id'         => $notifiable->id,
+            'notifiable_type'     => get_class($notifiable),
+            'title'                       => $title,
+            'message'              => $message,
+            'type'                     => $type,
         ]);
 
-        return $response->body();
+        // Dispatch a queued job to send the notification via socket.
+//        SendNotificationJob::dispatch($notification);
+        // Or, you could fire an event: event(new NotificationCreated($notification));
+
+        return $notification;
     }
 
     /**
-     * Get the FCM configuration.
+     * Get paginated notifications for a notifiable entity.
      *
-     * @return \App\Models\Configuration
+     * @param  int  $notifiableId
+     * @param  string  $notifiableType
+     * @param  array   $filters
+     * @param  int     $perPage
+     * @return LengthAwarePaginator
      */
-    protected static function getConfiguration()
+    public function getNotifiableNotifications(
+        int $notifiableId,
+        string $notifiableType,
+        array $filters = [],
+        int $perPage = 15,
+        int $page = 1
+    ): LengthAwarePaginator
     {
+        $query = Notification::query()->where('notifiable_id', $notifiableId)
+            ->where('notifiable_type', $notifiableType);
 
-//        return Configuration::where('key', 'fcmToken')->first();
+        if (!empty($filters['unread'])) {
+            $query->unread();
+        }
+        // Add more filters if needed (e.g., by type or date)
+
+        return $query->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
     }
 
+    /**
+     * Mark a notification as read.
+     */
+    public function markAsRead(int $notificationId,int $notifiableId, string $notifiableType): bool
+    {
+        return Notification::where('id', $notificationId)
+            ->where('notifiable_id', $notifiableId)
+            ->where('notifiable_type', $notifiableType)
+            ->update(['is_read' => true]);
+    }
+
+    /**
+     * Mark all notifications for a notifiable entity as read.
+     */
+    public function markAllAsRead(int $notifiableId, string $notifiableType): int
+    {
+        return Notification::where('notifiable_id', $notifiableId)
+            ->where('notifiable_type', $notifiableType)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+    }
+
+    /**
+     * Get the count of unread notifications for a notifiable entity.
+     */
+    public function getUnreadCount(int $notifiableId, string $notifiableType): int
+    {
+        return Notification::where('notifiable_id', $notifiableId)
+            ->where('notifiable_type', $notifiableType)
+            ->where('is_read', false)
+            ->count();
+    }
 }
