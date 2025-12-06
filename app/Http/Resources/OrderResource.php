@@ -3,6 +3,8 @@
 namespace App\Http\Resources;
 
 use App\Models\Service;
+use App\Models\Setting;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -16,7 +18,7 @@ class OrderResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-
+        $preview_order_cost = Setting::getSetting('preview_cost', WalletService::PREVIEW_COST);
         return [
             'id' => $this->id,
             'start' => $this->start,
@@ -28,12 +30,14 @@ class OrderResource extends JsonResource
             'desc' => $this->desc,
             'price' => $this->price,
             'unknown_problem'=>$this->unknown_problem,
-            'max_allowed_price' => $this->max_allowed_price,
+//            'max_allowed_price' => $this->max_allowed_price,
+            'max_allowed_price' => (int)($this->unknown_problem? $preview_order_cost: $this->max_allowed_price),
             'location_latitude' => $this->location_latitude,
             'location_longitude' => $this->location_longitude,
             'location_desc' => $this->location_desc,
             'location_name' => $this->location_name,
             'user' => new UserResource($this->whenLoaded('user')),
+            'invoice' => new InvoiceResource($this->whenLoaded('invoice')),
             'service' => new ServiceResource($this->whenLoaded('service')),
             'provider' => new ProviderResource($this->whenLoaded('provider')),
 //            'location' => new LocationResource($this->whenLoaded('location')),

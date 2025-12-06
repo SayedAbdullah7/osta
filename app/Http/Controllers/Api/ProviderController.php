@@ -7,14 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterProviderRequest;
 use App\Http\Requests\UpdateProviderRequest;
 use App\Http\Resources\InvoiceResource;
+use App\Http\Resources\LevelResource;
 use App\Http\Resources\MessageResource;
+use App\Http\Resources\ProviderLevelResource;
 use App\Http\Resources\ProviderResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Invoice;
+use App\Models\Level;
 use App\Models\Order;
 use App\Models\Provider;
 use App\Services\AccountDeletionService;
 use App\Services\FirebaseNotificationService;
+use App\Services\LevelEvaluationService;
 use App\Services\OTPService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -317,8 +321,16 @@ class ProviderController extends Controller
         }
     }
     // show statictes
-    public function home(): JsonResponse
+    public function home()
     {
+        $provider = auth()->guard('provider')->user();
+//        $provider->get
+         app(LevelEvaluationService::class)->evaluateProvider($provider);
+//        app(LevelEvaluationService::class)->ensureProviderHasLevel($provider);
+
+        $provider->load([ 'currentMonthMetrics']);
+
+        $allLevels = Level::orderBy('level')->get();
         return $this->apiResponse(
             [
                 'success' => true,
@@ -335,6 +347,14 @@ class ProviderController extends Controller
                         'completed_orders' => $this->getTotalCompletedOrdersThisMonth(),
                         'earnings' => $this->getTotalEarningsThisMonth(),
                     ],
+                    'year' => [
+                        'completed_orders' => $this->getTotalCompletedOrdersThisYear(),
+                        'earnings' => $this->getTotalEarningsThisYear(),
+                    ],
+                    'levels' => LevelResource::collection($allLevels)->additional([
+                        'currentLevelId' => 1,
+                    ]),
+                    'provider_stats' => new ProviderLevelResource($provider),
 //                    'total_completed_orders_today' => $this->getTotalCompletedOrdersToday(),
                     // erring form orders
 //                    'total_erring_form_completed_orders_today' => $this->getTotalErringFormOrdersCompletedToday(),
@@ -376,6 +396,9 @@ class ProviderController extends Controller
             case 'month':
                 $query->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()]);
                 break;
+            case 'year':
+                $query->whereBetween('created_at', [now()->startOfYear(), now()->endOfYear()]);
+                break;
         }
 
         return $query->count();
@@ -396,6 +419,9 @@ class ProviderController extends Controller
                     break;
                 case 'month':
                     $q->whereBetween('updated_at', [now()->startOfMonth(), now()->endOfMonth()]);
+                    break;
+                case 'year':
+                    $q->whereBetween('updated_at', [now()->startOfYear(), now()->endOfYear()]);
                     break;
             }
         });
@@ -418,6 +444,15 @@ class ProviderController extends Controller
     {
         return $this->getOrderStatsByPeriod('month');
     }
+    private function getTotalCompletedOrdersThisYear()
+    {
+        return $this->getOrderStatsByPeriod('year');
+    }
+
+    private function getTotalEarningsThisYear()
+    {
+        return $this->getEarningsStatsByPeriod('year');
+    }
 
     public function getTotalEarningsToday()
     {
@@ -433,6 +468,7 @@ class ProviderController extends Controller
     {
         return $this->getEarningsStatsByPeriod('month');
     }
+
     public function getPendingInvoices()
     {
         $providerId = Auth::guard('provider')->user()->id;

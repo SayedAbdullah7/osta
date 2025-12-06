@@ -28,7 +28,7 @@ class ConverstionResource extends JsonResource
             'last_message' => $this->whenLoaded('lastMessage', function () {
                 return new MessageResource($this->lastMessage);
             }),
-
+            'unread_messages_count'=> $this->unread_messages_count,
             'user' => $this->whenLoaded('users', function () {
                 return new UserResource($this->users->first());
                 return $this->users->map(function ($user) {

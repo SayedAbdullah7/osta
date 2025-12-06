@@ -2,14 +2,17 @@
 
 namespace App\Services;
 
+use App\Enums\OfferStatusEnum;
 use App\Enums\OrderStatusEnum;
 use App\Http\Requests\MessageRequest;
 use App\Http\Requests\StoreMessageRequest;
 use App\Http\Resources\ConverstionResource;
+use App\Http\Resources\InvoiceResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
 use App\Models\Invoice;
 use App\Models\Message;
+use App\Models\Offer;
 use App\Models\Order;
 use App\Models\Provider;
 use App\Repositories\MessageRepository;
@@ -31,6 +34,16 @@ class MessageService
     {
         $this->messageRepository = $messageRepository;
         $this->userOrderService =  $userOrderService;
+    }
+    public function markMessagesAsRead($conversationId, $user)
+    {
+        $userId = $user->id;
+        $userType = get_class($user);
+        \App\Models\Message::where('conversation_id', $conversationId)
+            ->where('sender_id', '!=', $userId)
+            ->where('sender_type', '!=', $userType)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
     }
 
     /**
@@ -133,7 +146,9 @@ class MessageService
     public function applyCrearteMessage($conversation, $content, $senderId, $senderType, $media = null, $options = [], $orderId = null): \App\Models\Message
     {
         $conversationId = $conversation->id;
-        dispatch(fn() => $this->socketService->push('user', $data, $users, $event, $msg));
+        $socketService = new SocketService();
+
+//        dispatch(fn() => $socketService->push('user', $data, $users, $event, $msg));
 
         $message = $this->messageRepository->createMessage($conversationId, $content, $senderId, $senderType, $options,$orderId);
 //        Storage::put('message1.json', json_encode([$message]));
@@ -199,7 +214,7 @@ class MessageService
                 $invoice->is_sent = true;
                 $invoice->save();
             }
-            $actionMessage = $this->getPayMessage($price);
+            $actionMessage = $this->getPayMessage($price,$invoice);
         }
         if ($action == 'cash_payment') {
             $price = $conversation->model->price;
@@ -211,7 +226,7 @@ class MessageService
                 $this->notValidException('order already has an offer');
             }
             $offer = $actionValue;
-            $actionMessage = $this->getConvertToOfferMessage($offer);
+            $actionMessage = $this->handelConvertToOffer($order, (int)$offer);
         }
         if ($action == Message::ACTION_CONVERT_TO_PREVIEW) {
             $order = $conversation->model;
@@ -404,7 +419,7 @@ class MessageService
         ];
         return $actions['additional_cost'];
     }
-    public function getAdditionalCostAddedMessage($additional_cost,$description): array
+    public function getAdditionalCostAddedMessage($additional_cost,$description,$invoice): array
     {
         return [
                 'message' => 'provider_added_additional_cost_equals '.$additional_cost,
@@ -417,11 +432,12 @@ class MessageService
                     'url' => '',
                     'action_name' => 'additional_cost',
                     'action_status' => '0',
-                    'description' => $description
+                    'description' => $description,
+                    'invoice' => new InvoiceResource($invoice)
                 ],
         ];
     }
-    public function getPurchasesCostAddedMessage($additional_cost,$description): array
+    public function getPurchasesCostAddedMessage($additional_cost,$description,$invoice): array
     {
         return [
                 'message' => 'provider_added_purchases_equals '.$additional_cost,
@@ -434,12 +450,13 @@ class MessageService
                     'url' => '',
                     'action_name' => 'purchases',
                     'action_status' => '0',
-                    'description' => $description
+                    'description' => $description,
+                    'invoice' => new InvoiceResource($invoice)
                 ],
         ];
     }
 
-    public function getConvertToOfferMessage($offerPrice): array
+    public function getConvertToOfferMessage($offerPrice,$invoice): array
     {
         return [
                 'message' => 'provider_request_convert_to_offer_equals '.$offerPrice,
@@ -453,7 +470,8 @@ class MessageService
                     ],
                     'url' => 'api/reponse-action',
                     'action_name' => Message::ACTION_CONVERT_TO_OFFER,
-                    'action_status' => '1'
+                    'action_status' => '1',
+                    'invoice' => new InvoiceResource($invoice)
                 ],
         ];
     }
@@ -475,7 +493,7 @@ class MessageService
             ],
         ];
     }
-    public function getConvertedToPreviewMessage(): array
+    public function getConvertedToPreviewMessage($invoice): array
     {
         return [
             'message' => 'provider_converted_the_order_to_preview',
@@ -486,7 +504,8 @@ class MessageService
                 ],
                 'url' => '',
                 'action_name' => Message::ACTION_CONVERT_TO_PREVIEW,
-                'action_status' => '0'
+                'action_status' => '0',
+                'invoice' => new InvoiceResource($invoice)
             ],
         ];
     }
@@ -534,7 +553,7 @@ class MessageService
         ];
         return $actions['confirm_order'];
     }
-    public function getPayMessage($price): array
+    public function getPayMessage($price,$invoice): array
     {
         $actions = [
             'additional_cost' => [
@@ -550,7 +569,8 @@ class MessageService
 //                    'url' => 'api/reponse-action',
                     'url' => '',
                     'action_name' => Message::ACTION_PAY,
-                    'action_status' => '1'
+                    'action_status' => '1',
+                    'invoice' => new InvoiceResource($invoice)
                 ],
             ],
 
@@ -634,27 +654,34 @@ class MessageService
 //        $room = 'conversation';
 //        log::channel('test')->info('users and providers',[$users, $providers]);
         if (!empty($users)) {
+
 //            log::channel('test')->info('users',$users);
             $socketService->push('user', $data, $users, $event, $msg);
         }
         if (!empty($providers)) {
+
 //            log::channel('test')->info('providers',$providers);
             $socketService->push( 'provider', $data, $providers, $event, $msg);
         }
         if (get_class(auth()->user()) == Provider::class){
-            $conversation->loadMissing('lastMessage.media','providers.media');
-            $conversation->sender_id = null;
-            $socketService->push('user', new ConverstionResource($conversation), $users, 'chat_message_in_conversation', $msg);
+            if (!empty($users)) {
+                $conversation->loadMissing('lastMessage.media', 'providers.media');
+                $conversation->sender_id = null;
+                $socketService->push('user', new ConverstionResource($conversation), $users, 'chat_message_in_conversation', $msg);
+            }
 
         }else{
-            $conversation->loadMissing('lastMessage.media','users.media');
-            $conversation->sender_id = null;
-            $socketService->push('provider', new ConverstionResource($conversation), $providers, 'chat_message_in_conversation', $msg);
+            if (!empty($providers)){
+                $conversation->loadMissing('lastMessage.media','users.media');
+                $conversation->sender_id = null;
+                $socketService->push('provider', new ConverstionResource($conversation), $providers, 'chat_message_in_conversation', $msg);
+            }
+
         }
 
-        $conversation->loadMissing('lastMessage.media','users.media');
-        $conversation->sender_id = null;
-        $socketService->push('admin', $message, $providers, 'chat_message_in_conversation', $msg);
+//        $conversation->loadMissing('lastMessage.media','users.media');
+//        $conversation->sender_id = null;
+//        $socketService->push('admin', $message, $providers, 'chat_message_in_conversation', $msg);
 
     }
 
@@ -707,8 +734,8 @@ class MessageService
         $order->calculatePrice();
 
         $order->save();
-        $walletService->updateInvoiceAdditionalCost($invoice, $order);
-        return  $this->getAdditionalCostAddedMessage($value,$description);
+        $invoice =  $walletService->updateInvoiceAdditionalCost($invoice, $order);
+        return  $this->getAdditionalCostAddedMessage($value,$description,$invoice);
 
     }
     private function handelPurchases(Order $order, int $value = 0,$description = '',$media = null)
@@ -735,14 +762,14 @@ class MessageService
 //        $order->price += $additionalCost;
         $order->calculatePrice();
         $order->save();
-        $walletService->updateInvoiceAdditionalCost($invoice, $order);
+        $invoice = $walletService->updateInvoiceAdditionalCost($invoice, $order);
         if ($media){
 //            $orderDetail->addMedia($media)->toMediaCollection('images');
             foreach ($media as $image) {
                 $orderDetail->addMedia($image)->preservingOriginal()->toMediaCollection('images');
             }
         }
-        return  $this->getPurchasesCostAddedMessage($value,$description);
+        return  $this->getPurchasesCostAddedMessage($value,$description,$invoice);
     }
 
     private function handelConvertToPreview(Order $order): ?array
@@ -773,8 +800,46 @@ class MessageService
                 'value' => WalletService::PREVIEW_COST
             ]
         );
+        $invoice = $walletService->updateInvoiceAdditionalCost($invoice, $order);
+        return  $this->getConvertedToPreviewMessage($invoice);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function handelConvertToOffer(Order $order, $price): ?array
+    {
+        $walletService = app(WalletService::class);
+        $invoice = $order->invoice;
+        if (!$invoice) {
+            $invoice = $walletService->createInvoice($order);
+        }
+        if ($invoice->payment_status == 'paid') {
+            $this->notFoundException('this action is not available');
+        }
+        if(!$order->isPreview()) {
+            $this->notValidException('order already has an offer');
+        }
+        if (!$price){
+            $this->notValidException('offer price not valid');
+        }
+        $order->price = $price;
+        $order->unknown_problem = 0;
+        $order->save();
+        $offer = $order->offers()->accepted()->first();
+        if (!$offer) {
+            $offer = new Offer();
+            $offer->order_id = $order->id;
+            $offer->provider_id = $order->provider_id;
+            $offer->status = OfferStatusEnum::ACCEPTED;
+            $offer->deleted_at = null;
+//            return $this->notValidException('offer not found');
+        }
+        $offer->price = $price;
+        $offer->save();
+
         $walletService->updateInvoiceAdditionalCost($invoice, $order);
-        return  $this->getConvertedToPreviewMessage();
+        return  $this->getConvertToOfferMessage($price, $invoice);
     }
 
 

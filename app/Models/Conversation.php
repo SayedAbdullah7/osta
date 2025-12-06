@@ -12,6 +12,18 @@ class Conversation extends Model
 
     protected $guarded = [];
 
+    // Conversation Model
+    public function unreadMessagesCountForUser($user)
+    {
+        return $this->messages()
+            ->where(function ($query) use ($user) {
+                $query->where('sender_id', '!=', $user->id) // Exclude messages sent by the user
+                ->orWhere('sender_type', '!=', get_class($user)); // Exclude messages sent by the user class type
+            })
+            ->where('is_read', false)->count(); // Only unread messages
+    }
+
+
     public function model()
     {
         return $this->morphTo();

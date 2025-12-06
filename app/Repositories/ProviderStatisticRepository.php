@@ -16,7 +16,8 @@ class ProviderStatisticRepository
         $month = Carbon::now()->startOfMonth();
         return ProviderStatistics::firstOrCreate(
             ['provider_id' => $providerId, 'month' => $month],
-            ['orders_done_count' => 0, 'level' => 1, 'orders_remaining_for_next_level' => $this->getOrdersRequiredForNextLevel(1)]
+            ['orders_done_count' => 0, 'level' => 1, 'orders_remaining_for_next_level' => 1000]
+//            ['orders_done_count' => 0, 'level' => 1, 'orders_remaining_for_next_level' => $this->getOrdersRequiredForNextLevel(1)]
         );
     }
 
@@ -26,7 +27,7 @@ class ProviderStatisticRepository
         $statistics->orders_remaining_for_next_level--;
 
         if ($statistics->orders_remaining_for_next_level <= 0) {
-            $this->levelUp($statistics);
+//            $this->levelUp($statistics);
         }
 
         $statistics->save();
@@ -86,7 +87,7 @@ class ProviderStatisticRepository
         $statistics->orders_done_count = $completedOrdersCount;
 
         // After recalculating orders done, recalculate the level
-        $this->recalculateLevel($statistics);
+//        $this->recalculateLevel($statistics);
     }
 
     public function getNextLevel($currentLevel)

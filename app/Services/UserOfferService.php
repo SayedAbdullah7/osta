@@ -214,14 +214,14 @@ class UserOfferService
             );
         }
 
-        // Batch push notification to user for multiple deleted offers
-        $this->socketService->push(
-            'user',
-            OfferResource::collection($offers),
-            [$userId],
-            'offers_deleted',
-            'Multiple offers deleted'
-        );
+//        // Batch push notification to user for multiple deleted offers
+//        $this->socketService->push(
+//            'user',
+//            OfferResource::collection($offers),
+//            [$userId],
+//            'offers_deleted',
+//            'Multiple offers deleted'
+//        );
 
         // Delete offers by IDs
         Offer::whereIn('id', $offerIdsToDelete)
@@ -244,14 +244,14 @@ class UserOfferService
         }
 
 
-        foreach ($offers as $offer) {
-            $order = $offer->order;
-            $offerResource = new OfferResource($offer);
-            $this->socketService->push('provider', $offerResource, [$offer->provider_id], 'offer_deleted', "Offer deleted #" . $offer->id);
-            if ($order && $order->id != $acceptedOrderId) {
-                $this->socketService->push('user',$offerResource, [$order->user_id], 'offer_deleted', "Offer deleted #" . $offer->id);
-            }
-        }
+//        foreach ($offers as $offer) {
+//            $order = $offer->order;
+//            $offerResource = new OfferResource($offer);
+//            $this->socketService->push('provider', $offerResource, [$offer->provider_id], 'offer_deleted', "Offer deleted #" . $offer->id);
+//            if ($order && $order->id != $acceptedOrderId) {
+//                $this->socketService->push('user',$offerResource, [$order->user_id], 'offer_deleted', "Offer deleted #" . $offer->id);
+//            }
+//        }
         // Collect IDs of offers to delete
         $offerIdsToDelete = $offers->pluck('id')->toArray();
         // Delete offers by IDs

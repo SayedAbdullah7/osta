@@ -7,9 +7,11 @@ use App\Enums\OrderWarrantyEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
+use App\Http\Resources\InvoiceResource;
 use App\Http\Resources\LocationResource;
 use App\Http\Resources\OrderDetailResource;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\SubServiceResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Country;
 use App\Models\Location;
@@ -18,6 +20,7 @@ use App\Models\Provider;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
 use App\Services\OrderService;
 use App\Services\ProviderOrderService;
+use App\Services\WalletService;
 use Bavix\Wallet\Internal\Exceptions\ExceptionInterface;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -226,7 +229,19 @@ class OrderController extends Controller
             return $this->respondNotFound();
         }
         $orderDetails = $order->orderDetails;
-
+        $walletService = app(WalletService::class);
+        $invoice = $order->invoice;
+        if (!$invoice) {
+            $invoice = $walletService->createInvoice($order);
+        }
+        return $this->apiResponse([
+            'success' => true,
+            'result' => [
+                'details' => OrderDetailResource::collection($orderDetails),
+                'invoice' => InvoiceResource::collection([$invoice]),
+            ],
+            'message' => '',
+        ], 200);
         return $this->respondWithResource(OrderDetailResource::collection($orderDetails), '');
     }
 

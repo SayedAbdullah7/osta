@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\LevelEvaluationService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -188,5 +189,74 @@ class Provider extends Authenticatable implements HasMedia, Wallet
     public function deletionRequests()
     {
         return $this->morphMany(AccountDeletionRequest::class, 'deletable');
+    }
+
+    // levels
+
+    public function getCurrentLevel()
+    {
+//        return  $this->hasOneThrough(Level::class, 'provider_levels')
+//            ->withPivot('achieved_at', 'valid_until', 'is_current')
+//            ->withTimestamps()
+//            ->orderByDesc('level')->wherePivot('is_current', true);
+        return $this->levels()
+            ->wherePivot('is_current', true)
+            ->first();
+    }
+
+    public function currentProviderLevel()
+    {
+        return $this->hasOne(ProviderLevel::class)->where('is_current', true);
+    }
+
+//    public function getCurrentLevel()
+//    {
+//    return $this->currentProviderLevel?;
+//    }
+
+//    public function getCurrentLevelAttribute()
+//    {
+//        return $this->levels()
+//            ->wherePivot('is_current', true)
+//            ->first();
+//    }
+
+    public function levels()
+    {
+        return $this->belongsToMany(Level::class, 'provider_levels')
+            ->withPivot('achieved_at', 'valid_until', 'is_current')
+            ->withTimestamps()
+            ->orderByDesc('level');
+    }
+
+    public function metrics()
+    {
+        return $this->hasMany(ProviderMetric::class);
+    }
+
+    public function currentMonthMetrics()
+    {
+        return $this->hasOne(ProviderMetric::class)
+            ->where('month', now()->startOfMonth());
+    }
+
+    // for new logic grace period
+    // In your Provider model:
+    public function getEffectiveOrderCount(): int
+    {
+        if (!$this->getCurrentLevel()->hasGracePeriod()) {
+            return $this->currentMonthMetrics()->completed_orders;
+        }
+
+        return $this->currentMonthMetrics()->completed_orders +
+        $this->metrics()
+            ->where('month', now()->subMonth()->startOfMonth())
+            ->value('completed_orders') ?? 0;
+    }
+
+    public function isInGracePeriod(): bool
+    {
+        return app(LevelEvaluationService::class)
+            ->isInGracePeriod($this, $this->getCurrentLevel());
     }
 }

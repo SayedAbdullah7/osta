@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "503f2c6296c442b08f26dbcb4c1b8946",
+    "content-hash": "c1ba9417436203009d1fd0c3d09c4620",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -6170,16 +6170,16 @@
         },
         {
             "name": "predis/predis",
-            "version": "v3.0.0",
+            "version": "v3.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/predis/predis.git",
-                "reference": "7d86f7afb37940bfc7aaa2909147616881377667"
+                "reference": "202e0c5322b906ec4c761c0cefebad6d0959a699"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/predis/predis/zipball/7d86f7afb37940bfc7aaa2909147616881377667",
-                "reference": "7d86f7afb37940bfc7aaa2909147616881377667",
+                "url": "https://api.github.com/repos/predis/predis/zipball/202e0c5322b906ec4c761c0cefebad6d0959a699",
+                "reference": "202e0c5322b906ec4c761c0cefebad6d0959a699",
                 "shasum": ""
             },
             "require": {
@@ -6221,7 +6221,7 @@
             ],
             "support": {
                 "issues": "https://github.com/predis/predis/issues",
-                "source": "https://github.com/predis/predis/tree/v3.0.0"
+                "source": "https://github.com/predis/predis/tree/v3.1.0"
             },
             "funding": [
                 {
@@ -6229,7 +6229,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-05-02T23:18:59+00:00"
+            "time": "2025-07-22T15:37:44+00:00"
         },
         {
             "name": "psr/cache",

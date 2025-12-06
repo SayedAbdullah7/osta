@@ -27,6 +27,7 @@ class MessageController extends Controller
         $this->messageService = $messageService;
     }
 
+
     /**
      * @throws \Exception
      */
@@ -73,6 +74,9 @@ class MessageController extends Controller
         }
         [$messages, $conversation] = $this->messageService->getMessagesWithConversation($perPage, $page, $request->conversation_id, $request->order_id);
 
+// ✅ Mark unread messages as read for this user
+        $user = auth()->user();
+        $this->messageService->markMessagesAsRead($conversation->id, $user);
         return $this->respondWithResourceCollection(MessageResource::collection($messages), '');
         return $this->apiResponse(
             [

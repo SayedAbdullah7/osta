@@ -463,6 +463,7 @@
 <!--end::Chat drawer-->
 <!--begin::Chat drawer-->
 @include('model')
+@include('chat')
 
 <!--begin::Javascript-->
 <script>var hostUrl = "assets/";</script>

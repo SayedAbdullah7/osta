@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Filament\Resources\DiscountCodeResource;
 use App\Models\DiscountCode;
 use App\Models\Order;
 use Exception;
@@ -61,7 +62,7 @@ class DiscountService
             return ['valid' => false, 'message' => 'Discount code has expired.'];
         }
 
-        return ['valid' => true, 'discount' => $discount];
+        return ['valid' => true, 'discount' => $discount, 'message' => 'Discount code is valid.'];
     }
 
     public function applyDiscountCodeToOrder(Order $order, string $code): array

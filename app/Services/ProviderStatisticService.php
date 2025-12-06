@@ -25,7 +25,7 @@ class ProviderStatisticService
     public function recalculateProviderLevel($providerId): void
     {
         $statistics = $this->providerStatisticsRepository->getCurrentMonthStatistics($providerId);
-        $this->providerStatisticsRepository->recalculateLevel($statistics);
+//        $this->providerStatisticsRepository->recalculateLevel($statistics);
     }
 
     public function recalculateProviderOrdersDoneCount($providerId): void

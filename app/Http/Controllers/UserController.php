@@ -103,7 +103,7 @@ class UserController extends Controller
         // Save the updated user
         $user->save();
 
-        return response()->json(['status' => true, 'msg' => 'تم الحفظ بنجاح']);
+            return response()->json(['status' => true, 'msg' => 'تم الحفظ بنجاح']);
     }
 
     // Delete the discount code

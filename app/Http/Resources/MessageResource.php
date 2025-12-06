@@ -38,6 +38,8 @@ class MessageResource extends JsonResource
                     'thumb' => $media->getUrl('thumb'),
                 ];
             }),
+            // is $this->options is empty
+            'is_sys_msg' => !empty($this->options) ? true : false,
             // 'options' => $this->options
             'options' => [
                 'variables' => $this->options['variables'] ?? null,
@@ -46,6 +48,7 @@ class MessageResource extends JsonResource
                 'action_name' => $this->options['action_name'] ?? null,
                 'action_status' => (string)($this->options['action_status'] ?? ''),
                 'description' => $this->options['description'] ?? null,
+                'invoice' => $this->options['invoice'] ?? null,
             ],
         ];
 

@@ -3,55 +3,94 @@
 namespace Database\Seeders;
 
 use App\Models\Level;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class LevelSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void
+    public function run()
     {
-        if (Level::count() < 1) {
-            // Define the data for levels with next_level_id initially set to null
-            $levels = [
-                [
-                    'level' => 1,
-                    'orders_required' => 0,
-                    'next_level_id' => null, // Level 1 has no next level
+        // Clear existing levels
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        Level::truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // Bronze Level (Level 1)
+        $bronze = Level::create([
+            'name' => 'Bronze',
+            'slug' => 'bronze',
+            'level' => 1,
+            'badge_image' => 'badges/bronze.png',
+            'requirements' => [
+                'metrics' => [
+                    'completed_orders' => 20,
+                    'average_rating' => 4.0
                 ],
-                [
-                    'level' => 2,
-                    'orders_required' => 20,
-                    'next_level_id' => null, // Temporarily set to null
+                'duration' => 'P1M' // 1 month evaluation period
+            ],
+            'benefits' => [
+                'commission_rate' => 0.90, // 10% platform fee
+//                'features' => ['basic_support'],
+                'badge' => 'bronze',
+                'priority' => 1
+            ],
+            'grace_period_months' => 1,
+            'grace_period_applies_to_orders_only' => true,
+            'is_active' => true
+        ]);
+
+        // Silver Level (Level 2)
+        $silver = Level::create([
+            'name' => 'Silver',
+            'slug' => 'silver',
+            'level' => 2,
+            'badge_image' => 'badges/silver.png',
+            'requirements' => [
+                'metrics' => [
+                    'completed_orders' => 50,
+                    'average_rating' => 4.3
                 ],
-                [
-                    'level' => 3,
-                    'orders_required' => 30,
-                    'next_level_id' => null, // Level 3 is the last level
+                'duration' => 'P1M'
+            ],
+            'benefits' => [
+                'commission_rate' => 0.85, // 15% platform fee
+//                'features' => ['priority_support', 'faster_payouts'],
+                'badge' => 'silver',
+                'priority' => 2
+            ],
+            'grace_period_months' => 1,
+            'grace_period_applies_to_orders_only' => true,
+            'is_active' => true
+        ]);
+
+        // Gold Level (Level 3)
+        $gold = Level::create([
+            'name' => 'Gold',
+            'slug' => 'gold',
+            'level' => 3,
+            'badge_image' => 'badges/gold.png',
+            'requirements' => [
+                'metrics' => [
+                    'completed_orders' => 100,
+                    'average_rating' => 4.5
                 ],
-            ];
+                'duration' => 'P1M'
+            ],
+            'benefits' => [
+                'commission_rate' => 0.80, // 20% platform fee
+//                'features' => ['premium_support', 'instant_payouts', 'featured_listing'],
+                'badge' => 'gold',
+                'priority' => 3
+            ],
+            'grace_period_months' => 1,
+            'grace_period_applies_to_orders_only' => true,
+            'is_active' => true
+        ]);
 
-            // Create each level with next_level_id initially set to null
-            foreach ($levels as $levelData) {
-                Level::create(array_merge($levelData, [
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]));
-            }
+        // Set up level progression chain
+//        $bronze->update(['next_level_id' => $silver->id]);
+//        $silver->update(['next_level_id' => $gold->id]);
 
-            // Fetch all levels to update next_level_id
-            $allLevels = Level::all()->keyBy('level');
-
-            foreach ($levels as $levelData) {
-                $currentLevel = $allLevels->get($levelData['level']);
-                $nextLevelId = $levelData['next_level_id'];
-
-                if ($currentLevel && $nextLevelId) {
-                    $currentLevel->update(['next_level_id' => $nextLevelId]);
-                }
-            }
-        }
+        $this->command->info('Successfully seeded 3 levels: Bronze, Silver, Gold');
     }
 }

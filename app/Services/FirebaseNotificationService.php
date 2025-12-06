@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessNotificationRequest;
 use App\Models\DeviceToken;
 use Google\Auth\Credentials\ServiceAccountCredentials;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,7 @@ class FirebaseNotificationService
     public function __construct()
     {
         $this->url = config('custom.fcm_endpoint');
-        $this->accessToken = $this->generateAccessToken();
+//        $this->accessToken = $this->generateAccessToken();
     }
 
     /**
@@ -23,7 +24,7 @@ class FirebaseNotificationService
      *
      * @return string|null
      */
-    private function generateAccessToken()
+    public function generateAccessToken()
     {
         // Check if the token exists in cache
         if (Cache::has('firebase_access_token')) {
@@ -144,8 +145,51 @@ class FirebaseNotificationService
             'Content-Type' => 'application/json',
         ])->post($url, ['message' => $payload]);
 
-        return $response->json();
+
+        $jsonResponse = $response->json();
+
+        // Handle token errors
+        if ($response->failed()) {
+            $this->handleFcmErrorResponse($jsonResponse, $deviceToken);
+        }
+
+        return $jsonResponse;
     }
+
+    /**
+     * Handle FCM error responses.
+     *
+     * @param array $response
+     * @param string $token
+     * @return void
+     * @throws \JsonException
+     */
+    private function handleFcmErrorResponse(array $response, string $token): void
+    {
+        if (!isset($response['error']['details'][0]['errorCode'])) {
+            return;
+        }
+
+        $errorCode = $response['error']['details'][0]['errorCode'];
+
+        // List of error codes that should result in token deletion
+        $errorsToDelete = [
+            'UNREGISTERED',             // Token no longer valid
+            'INVALID_ARGUMENT',         // Malformed token
+            'THIRD_PARTY_AUTH_ERROR',   // e.g., APNs or WebPush auth issues
+        ];
+
+        if (in_array($errorCode, $errorsToDelete, true)) {
+            // Delete token from database
+            DeviceToken::where('token', $token)->delete();
+            Log::info("Deleted invalid device token: {$token} due to error: {$errorCode}");
+        } else {
+            // Log other errors for investigation
+            Log::warning("Unhandled FCM error for token {$token}: " . json_encode($response, JSON_THROW_ON_ERROR));
+        }
+    }
+
+
 
     /**
      * Send notification to all devices of users and providers.
@@ -158,6 +202,56 @@ class FirebaseNotificationService
      * @return void
      */
     public function sendNotificationToUser(array $userIds = [], array $providerIds = [], string $title, string $body, array $data = [])
+    {
+        ProcessNotificationRequest::dispatch(
+            $userIds,
+            $providerIds,
+            $title,
+            $body,
+            $data
+        );
+        return;
+        $deviceTokens = DeviceToken::query()
+//            ->when(!empty($userIds), fn($query) => $query->whereIn('user_id', $userIds))
+//            ->when(!empty($providerIds), fn($query) => $query->whereIn('provider_id', $providerIds))
+            ->when(!empty($userIds) || !empty($providerIds), function ($query) use ($userIds, $providerIds) {
+                // Apply an OR condition for user_id and provider_id
+                $query->where(function ($subQuery) use ($userIds, $providerIds) {
+                    // If userIds is provided, add whereIn condition for user_id
+                    if (!empty($userIds)) {
+                        $subQuery->whereIn('user_id', $userIds);
+                    }
+                    // If providerIds is provided, add orWhereIn condition for provider_id
+                    if (!empty($providerIds)) {
+                        $subQuery->orWhereIn('provider_id', $providerIds);
+                    }
+                });
+            })
+            ->where('is_set_notification', true)
+            ->select('token', 'is_ios')
+            ->get();
+
+        // Group tokens by platform
+        $tokensByPlatform = $deviceTokens->groupBy('is_ios');
+
+        foreach ($tokensByPlatform as $isIos => $tokens) {
+            foreach ($tokens->pluck('token') as $token) {
+               $this->sendNotification($token, $title, $body, $data, (bool)$isIos);
+            }
+        }
+    }
+    /**
+     * Send notification to all devices of users and providers.
+     *
+     * @param array $userIds
+     * @param array $providerIds
+     * @param string $title
+     * @param string $body
+     * @param array $data
+     * @return void
+     */
+
+    public function executeSendNotificationToUser(array $userIds = [], array $providerIds = [], string $title, string $body, array $data = [])
     {
         $deviceTokens = DeviceToken::query()
 //            ->when(!empty($userIds), fn($query) => $query->whereIn('user_id', $userIds))

@@ -454,6 +454,11 @@ class WalletService
         return $user->transactions()->latest()->simplePaginate($perPage);
     }
 
+    public function getLatestPaginatedTransactions(WalletInterface $user, int $perPage = 10,$page): Paginator
+    {
+        return $user->transactions()->latest()->paginate($perPage, ['*'], 'page', $page);
+    }
+
     /**
      * @throws ExceptionInterface
      */

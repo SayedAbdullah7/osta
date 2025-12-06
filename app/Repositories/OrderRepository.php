@@ -69,6 +69,7 @@ class OrderRepository implements OrderRepositoryInterface
                 'media',
                 'offers.provider.reviewStatistics',
                 'providerReview',
+                'invoice'
             ])
             ->orderByDesc('id');
     }
@@ -192,14 +193,23 @@ class OrderRepository implements OrderRepositoryInterface
      */
     private function applyOrderBy(Builder $query, string $sortBy, bool $sortDesc, ?float $providerLatitude, ?float $providerLongitude): Builder
     {
-        return $query->when($sortBy === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude, $sortDesc) {
+    // Always calculate distance if provider coordinates are available
+        if ($providerLongitude && $providerLatitude) {
             $haversine = Order::calculateHaversineDistance($providerLatitude, $providerLongitude);
-            return $query->select('orders.*', $haversine)
-//                ->join('locations', 'orders.location_id', '=', 'locations.id')
-                ->orderBy('distance', $sortDesc ? 'desc' : 'asc');
-        }, function ($query) use ($sortBy, $sortDesc) {
-            return $query->orderBy($sortBy === 'time' ? 'start' : 'id', $sortDesc ? 'desc' : 'asc');
-        });
+            $query = $query->select('orders.*', $haversine);
+        }
+        return $query->orderBy(
+            $sortBy === 'distance' ? 'distance' : ($sortBy === 'time' ? 'start' : 'id'),
+            $sortDesc ? 'desc' : 'asc'
+        );
+//            $query->when($sortBy === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude, $sortDesc) {
+//            $haversine = Order::calculateHaversineDistance($providerLatitude, $providerLongitude);
+//            return $query->select('orders.*', $haversine)
+////                ->join('locations', 'orders.location_id', '=', 'locations.id')
+//                ->orderBy('distance', $sortDesc ? 'desc' : 'asc');
+//        }, function ($query) use ($sortBy, $sortDesc) {
+//            return $query->orderBy($sortBy === 'time' ? 'start' : 'id', $sortDesc ? 'desc' : 'asc');
+//        });
     }
 
     protected function baseQueryForGetProviderOrders(Provider $provider): Builder | HasMany
@@ -211,6 +221,7 @@ class OrderRepository implements OrderRepositoryInterface
                 'orderSubServices',
                 'media',
                 'userReview',
+                'invoice'
             ])
             ->orderByDesc('id');
     }

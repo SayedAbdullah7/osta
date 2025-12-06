@@ -13,6 +13,8 @@ class Invoice extends Model
         'details' => 'array',
     ];
 
+    protected $with = ['purchases'];
+
     public function order()
     {
         return $this->belongsTo(Order::class);
@@ -93,5 +95,10 @@ class Invoice extends Model
     public function totalPaid(): float
     {
         return $this->payments()->sum('amount');
+    }
+
+    public function purchases(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(OrderDetail::class, 'order_id', 'order_id')->where('name', Message::PURCHASES);
     }
 }

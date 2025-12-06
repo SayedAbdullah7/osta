@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 
 class DiscountCodeController extends Controller
 {
+    use \App\Http\Traits\Helpers\ApiResponseTrait;
     protected $discountService;
 
     public function __construct(DiscountService $discountService)
@@ -30,11 +31,21 @@ class DiscountCodeController extends Controller
 
         $result = $this->discountService->checkDiscountCodeValidity($request->code);
 
-        if ($result['success']) {
-            return response()->json(['message' => $result['message']]);
+        if ($result['valid']) {
+            return $this->apiResponse(
+                [
+                    'success' => true,
+                    'result' =>  $result['discount'],
+                    'message' => $result['message']
+                ], 200
+            );
+//            return response()->json([
+//                ['valid' => true, 'message' => $result['message']],
+//                ['discount' => $result['discount']]]);
+//            return response()->json(['message' => $result['message'], 'discount' => $result['discount']]);
         }
-
-        return response()->json(['error' => $result['error']], 400);
+return $this->respondError($result['message']);
+        return response()->json(['error' => $result['message']], 400);
     }
 
     /**

@@ -40,7 +40,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
     }
     protected function shouldSilenceRequest(IncomingEntry $entry)
     {
-        Log::info('Silencing request');
+//        Log::info('Silencing request');
 //        return true;
         if ($entry->type === 'request' &&
             $entry->content['method'] === 'GET' &&

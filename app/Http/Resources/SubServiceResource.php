@@ -20,6 +20,7 @@ class SubServiceResource extends JsonResource
             'name' => $this->name,
 //            'min_price' => $this->min_price,
             'max_price' => $this->max_price,
+            'description' => $this->desc??'هذا نص افتراضي لوصف الخدمة الفرعية التي لم يتم ادخال وصف لها لتجربة مساحة وشكل عرضها في التطبيق',
             'type' => $this->type,
             'service' => new ServiceResource($this->whenLoaded('service')),
             'spaces' => SpaceResource::collection($this->whenLoaded('spaces')),

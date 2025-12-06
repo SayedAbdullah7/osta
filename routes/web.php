@@ -36,6 +36,81 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+//check opcache
+Route::get('/test1', function () {
+//    $controller = app(\App\Http\Controllers\Api\User\OfferController::class);
+//    $controller->acceptOffer(199);
+//    return $this->userOfferService->acceptOffer($offerId,$user);
+
+    $service = app(\App\Services\UserOfferService::class);
+return    $service->acceptOffer(199,\App\Models\User::find(2));
+
+});
+
+Route::get('/check-opcache', function () {
+//
+//    if (function_exists('opcache_get_status')) {
+//        $status = opcache_get_status();
+//        if ($status && $status['opcache_enabled']) {
+//            echo "OPcache is enabled and working.\n";
+//        } else {
+//            echo "OPcache is NOT enabled.\n";
+//        }
+//    } else {
+//        echo "OPcache is not installed.\n";
+//    }
+    if (function_exists('opcache_get_status')) {
+        $status = opcache_get_status();
+        return response()->json([
+            'status' => 'success',
+            'opcache_enabled' => $status['opcache_enabled'],
+            'memory_usage' => $status['memory_usage'],
+            'scripts_cached' => $status['num_cached_scripts']??'N/A',
+        ]);
+    } else {
+        return response()->json(['status' => 'error', 'message' => 'OPcache is not enabled']);
+    }
+});
+Route::get('/php-info', function () {
+    return phpinfo();
+});
+Route::get('/benchmark-ok', function () {
+    return 'OK';
+});
+Route::get('/show-log', function () {
+    return show_log();
+});
+Route::get('/clear-log', function () {
+    return clear_log();
+});
+
+Route::get('/benchmark', function () {
+    // عملية حسابية بسيطة للتأكد من أن السيرفر فعلاً بيشتغل
+    $sum = 0;
+    for ($i = 0; $i < 1000; $i++) {
+        $sum += sqrt($i);
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Benchmark endpoint with light processing',
+        'calculation' => $sum,
+        'timestamp' => now()->toDateTimeString(),
+    ]);
+});
+
+Route::get('/benchmark-db', function () {
+    // جلب أول 10 مستخدمين من قاعدة البيانات
+    $users = User::limit(10)->get();
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Benchmark DB with Eloquent',
+        'data' => $users,
+        'timestamp' => now()->toDateTimeString(),
+    ]);
+});
+
 Route::get('/socket', function () {
     $order = \App\Models\Order::first();
     return event(new \App\Events\NewOrderCreated($order));
@@ -602,7 +677,7 @@ Route::get('/auth', function () {
 })->name('stadium-owner.index');
 //Route::get('/test2', function () {
 //})->name('user.index');
-Route::get('/users', [\App\Http\Controllers\SchemaUpdateController::class, 'users'])->name('profile.edit');
+Route::get('/users', [\App\Http\Controllers\SchemaUpdateController::class, 'users']);
 
 Route::get('/', function () {
     return view('welcome');

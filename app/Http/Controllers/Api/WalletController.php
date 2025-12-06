@@ -28,15 +28,31 @@ class WalletController extends Controller
     public function transactions(): JsonResponse
     {
         $user = Auth::user();
-        $transactions = $this->walletService->getSimpleLatestPaginatedTransactions($user);
-        return $this->respondWithResource(TransactionResource::collection($transactions));
+        $page = request()->get('page', 1);
+        $perPage = request()->get('per_page', 10);
+//        $transactions = $this->walletService->getSimpleLatestPaginatedTransactions($user);
+        $transactions = $this->walletService->getLatestPaginatedTransactions($user, $perPage, $page);
+        return $this->respondWithResourceCollection(TransactionResource::collection($transactions));
     }
 
     public function show(): JsonResponse
     {
         $user = Auth::user();
         $wallet  = $this->walletService->getWallet($user);
-        return $this->respondWithResource(new WalletResource($wallet));
+        $parPage = request()->get('per_page', 5);
+        $transactions = $this->walletService->getSimpleLatestPaginatedTransactions($user,$parPage);
+
+//        return $this->respondWithResource(new WalletResource($wallet));
+        return $this->apiResponse(
+            [
+                'success' => true,
+                'result' => [
+                    'wallet' => new WalletResource($wallet),
+                    'last_transactions' => TransactionResource::collection($transactions),
+                ],
+                'message' => ''
+            ], 200
+        );
     }
 
     public function deposit(Request $request)

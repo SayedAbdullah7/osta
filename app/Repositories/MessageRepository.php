@@ -180,10 +180,13 @@ class MessageRepository
                 )
                 ->paginate($perPage, ['*'], 'page', $page);
         }
-
+        $conversations->transform(function ($conversation,$member) {
+            $conversation->unread_messages_count = $conversation->unreadMessagesCountForUser(auth()->user());
+            return $conversation;
+        });
         return $conversations;
 // Transform the structure
-        $conversations->transform(function ($conversation) {
+        $conversations->transform(function ($conversation,$member) {
             $conversation->profile = $conversation->members->first()->user;
             unset($conversation->members);
             return $conversation;
