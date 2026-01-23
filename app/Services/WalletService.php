@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Events\OrderPaidByUserEvent;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Admin;
+use App\Models\DiscountCode;
 use App\Models\Invoice;
 use App\Models\Level;
 use App\Models\Order;
 use App\Models\ProviderStatistic as ProviderStatistics;
 use App\Models\Setting;
+use App\Services\SubscriptionService;
 use Bavix\Wallet\Internal\Exceptions\ExceptionInterface;
 use Bavix\Wallet\Models\Wallet;
 use Bavix\Wallet\Models\Transaction;
@@ -19,6 +21,40 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Support\Str;
 
+/**
+ * WalletService
+ *
+ * IMPORTANT FOR AI - Invoice and Earnings Calculations:
+ * =====================================================
+ *
+ * OVERVIEW:
+ * ---------
+ * This service handles all invoice creation, price calculations, and earnings distribution.
+ * Uses InvoiceCalculator for centralized calculations.
+ *
+ * KEY RULES:
+ * ----------
+ *
+ * 1. DISCOUNT RULES:
+ *    - Discount NEVER applies to purchases (المشتريات)
+ *    - Discount applies to warranty ONLY if apply_to_warranty = true
+ *    - Discount bearer determines who pays:
+ *      * 'admin': Admin bears full discount (provider earnings unaffected)
+ *      * 'both': Discount shared proportionally between admin and provider
+ *
+ * 2. EARNINGS RULES:
+ *    - Provider earns from: offer_price + additional_cost ONLY
+ *    - Provider does NOT earn from: purchases, warranty, preview_cost
+ *    - If discount bearer = 'admin': Provider earnings calculated BEFORE discount
+ *
+ * 3. INVOICE DETAILS:
+ *    All calculations stored in invoice->details JSON for transparency:
+ *    - Price components: offer_price, additional_cost, purchases, preview_cost, warranty
+ *    - Discount info: amount, bearer, applies_to_warranty
+ *    - Earnings: base, provider_earning, admin_earning, percentages
+ *
+ * SEE ALSO: InvoiceCalculator for detailed calculation logic
+ */
 class WalletService
 {
     private const ADMIN_PERCENTAGE = 0.20;
@@ -27,11 +63,10 @@ class WalletService
     private const PROVIDER_PREVIEW_PERCENTAGE = 0.5;
     public const PREVIEW_COST = 100;
 
+    protected DiscountService $discountService;
+    protected ProviderStatisticService $providerStatisticService;
 
-    protected $discountService;
-    protected $providerStatisticService;
-
-    public function __construct(DiscountService $discountService,ProviderStatisticService $providerStatisticService)
+    public function __construct(DiscountService $discountService, ProviderStatisticService $providerStatisticService)
     {
         $this->discountService = $discountService;
         $this->providerStatisticService = $providerStatisticService;
@@ -222,7 +257,7 @@ class WalletService
 
         return ['message' => 'Payment successful', 'status' => true];
     }
-    public function payInvoiceByAdminWallet(Invoice $invoice, float $amount = 0, $adminId): array
+    public function payInvoiceByAdminWallet(Invoice $invoice, $adminId, float $amount = 0): array
     {
         $userWallet = $this->getAdminWallet();
         if ($amount == 0) {
@@ -285,89 +320,145 @@ class WalletService
     }
 
 
-    private function calculateEarnings(Order $order): array
+    /**
+     * Calculate earnings for an order using InvoiceCalculator.
+     *
+     * @param Order $order
+     * @return InvoiceCalculator
+     */
+    private function calculateEarnings(Order $order): InvoiceCalculator
     {
-        $discount = $this->getDiscountAmount($order);
-        return $order->isPreview()
-            ? $this->calculatePreviewEarnings($order, $discount)
-            : $this->calculateOrderEarnings($order, $discount);
-    }
-
-    private function calculatePreviewEarnings(Order $order, float $discount = 0): array
-    {
-        $previewCost = Setting::getSetting('preview_cost', self::PREVIEW_COST);
-        $totalAmount = $previewCost - $discount;
-        $adminEarning = $totalAmount * self::ADMIN_PREVIEW_PERCENTAGE;
-        $providerEarning = $totalAmount * self::PROVIDER_PREVIEW_PERCENTAGE;
-        return [$totalAmount, $adminEarning, $providerEarning, $discount];
-    }
-
-    private function getPercentage($providerId)
-    {
-        $providerStatistic= $this->providerStatisticService->getProviderStatistics($providerId);
-        $level = Level::where('level',$providerStatistic->level)->first();
-//        $providerEarning = $level->percentage/100;
-//        $adminEarning = 1 - $providerEarning;
-        $adminEarning = $level->percentage/100;
-        $providerEarning = 1 - $adminEarning;
-
-        return [$providerEarning, $adminEarning];
-    }
-    private function calculateOrderEarnings(Order $order, float $discount = 0): array
-    {
-        $totalAmount = $order->price - $discount;
+        // Get provider/admin percentages
         list($providerPercentage, $adminPercentage) = $this->getPercentage($order->provider_id);
 
-        $adminEarning = $totalAmount * $adminPercentage;
-        $providerEarning = $totalAmount * $providerPercentage;
+        // Get discount code if applied
+        $discountCode = $this->discountService->getDiscountCodeForOrder($order);
 
-        return [$totalAmount, $adminEarning, $providerEarning, $discount];
+        // Use InvoiceCalculator for all calculations
+        $calculator = new InvoiceCalculator($order, $providerPercentage, $adminPercentage);
+        $calculator->setDiscountCode($discountCode)->calculate();
+
+        return $calculator;
     }
 
-    public function storeInvoice(Order $order, float $total, float $adminEarning, float $providerEarning, float $discount = 0, float $tax = 0, string $paymentMethod = null): Invoice
+    /**
+     * Get provider/admin percentage split based on provider level or active subscription.
+     *
+     * IMPORTANT:
+     * - commission_rate is in level->benefits JSON (e.g., 0.9 = 90% for provider)
+     * - fee_percentage in subscription is stored as percentage (e.g., 85 = 85%)
+     * - If provider has active subscription, we compare both percentages and use the higher one (best for provider)
+     *
+     * @param int $providerId
+     * @return array [providerPercentage, adminPercentage]
+     */
+    private function getPercentage($providerId): array
+    {
+        $providerStatistic = $this->providerStatisticService->getProviderStatistics($providerId);
+        $level = Level::where('level', $providerStatistic->level)->first();
+
+        // Get commission_rate from level benefits (e.g., 0.9 = 90% for provider)
+        // Default: provider gets 80%, admin gets 20%
+        $levelPercentage = $level->benefits['commission_rate'] ?? 0.80;
+
+        // Check if provider has active subscription
+        $subscriptionService = app(SubscriptionService::class);
+        $activeSubscription = $subscriptionService->getProviderLastValidSubscription($providerId);
+
+        $providerPercentage = $levelPercentage;
+
+        if ($activeSubscription && $activeSubscription->subscription) {
+            // Get fee_percentage from subscription
+            // fee_percentage is stored as percentage (e.g., 85 = 85%), so convert to decimal (0.85)
+            $subscriptionFeePercentage = $activeSubscription->subscription->fee_percentage ?? null;
+
+            if ($subscriptionFeePercentage !== null) {
+                // Convert from percentage to decimal if needed
+                // If fee_percentage > 1, it's already in percentage form (85), convert to decimal (0.85)
+                // If fee_percentage <= 1, it's already in decimal form (0.85)
+                $subscriptionPercentageDecimal = $subscriptionFeePercentage > 1
+                    ? $subscriptionFeePercentage / 100
+                    : $subscriptionFeePercentage;
+
+                // Use the higher percentage (best for provider)
+                $providerPercentage = max($levelPercentage, $subscriptionPercentageDecimal);
+            }
+        }
+
+        $adminPercentage = 1 - $providerPercentage;
+
+        return [$providerPercentage, $adminPercentage];
+    }
+
+    /**
+     * Store a new invoice for an order using InvoiceCalculator.
+     *
+     * DETAILS STORED:
+     * - Price components: offer_price, additional_cost, purchases, preview_cost, warranty
+     * - Discount info: amount, bearer, applies_to_warranty, discountable_base
+     * - Earnings: base, provider_earning, admin_earning, percentages
+     * - Totals: subtotal_before_discount, total_amount
+     *
+     * @param Order $order
+     * @param InvoiceCalculator $calculator
+     * @param float $tax Tax amount
+     * @param string|null $paymentMethod Payment method
+     * @return Invoice
+     */
+    public function storeInvoice(Order $order, InvoiceCalculator $calculator, float $tax = 0, string $paymentMethod = null): Invoice
     {
         $invoice = new Invoice();
         $invoice->order_id = $order->id;
-        $invoice->total = $total;
-        $invoice->admin_earning = $adminEarning;
-        $invoice->provider_earning = $providerEarning;
-        $invoice->discount = $discount;
+        $invoice->total = $calculator->getTotalAmount();
+        $invoice->admin_earning = $calculator->getAdminEarning();
+        $invoice->provider_earning = $calculator->getProviderEarning();
+        $invoice->discount = $calculator->getDiscountAmount();
         $invoice->tax = $tax;
         $invoice->payment_method = $paymentMethod;
-        $invoice->sub_total = $total - $discount + $tax;
-//        $invoice->status = 'pending';
-//        $invoice->payment_status = 'pending';
+        $invoice->sub_total = $calculator->getTotalAmount() + $tax; // Total already has discount applied
         $invoice->status = 'unpaid';
         $invoice->payment_status = 'unpaid';
         $invoice->uuid = Str::uuid();
-        $invoice->details = [
-            'service' => $order->service->name,
-            'worker' => $order->provider->name,
-//            'worker' => $order->provider->first_name . ' ' . $order->provider->last_name,
-            'working_in_minutes' => '',
-            'order_created_at' => $order->created_at,
-            'offer_price' => $order->getOfferPrice(),
-            'additional_cost' => $order->getAdditionalCost(),
-            'purchases' => $order->getPurchasesValue()
-        ];
+
+        // Store ALL calculation details in invoice->details
+        // This provides full transparency and audit trail
+        $details = $calculator->getInvoiceDetails();
+        $details['service'] = $order->service->name ?? '';
+        $details['worker'] = $order->provider->name ?? '';
+        $details['working_in_minutes'] = '';
+        $details['order_created_at'] = $order->created_at;
+
+        $invoice->details = $details;
         $invoice->save();
 
         return $invoice;
     }
 
-    public function updateInvoicePrice(Invoice $invoice, float $total, float $adminEarning, float $providerEarning, float $discount = 0, float $tax = 0): Invoice
+    /**
+     * Update invoice price and earnings using InvoiceCalculator.
+     *
+     * @param Invoice $invoice
+     * @param InvoiceCalculator $calculator
+     * @param float $tax Tax amount
+     * @return Invoice
+     */
+    public function updateInvoicePrice(Invoice $invoice, InvoiceCalculator $calculator, float $tax = 0): Invoice
     {
-        $invoice->total = $total;
-        $invoice->admin_earning = $adminEarning;
-        $invoice->provider_earning = $providerEarning;
-        $invoice->discount = $discount;
+        $invoice->total = $calculator->getTotalAmount();
+        $invoice->admin_earning = $calculator->getAdminEarning();
+        $invoice->provider_earning = $calculator->getProviderEarning();
+        $invoice->discount = $calculator->getDiscountAmount();
         $invoice->tax = $tax;
-        $invoice->sub_total = $total - $discount + $tax;
+        $invoice->sub_total = $calculator->getTotalAmount() + $tax;
         $invoice->updatePaymentStatus();
-        $details = $invoice->details;
-        $details['offer_price'] = $invoice->order->getOfferPrice();
-        $details['additional_cost'] = $invoice->order->getAdditionalCost();
-        $details['purchases'] = $invoice->order->getPurchasesValue();
+
+        // Update ALL calculation details
+        $details = $calculator->getInvoiceDetails();
+        $details['service'] = $invoice->order->service->name ?? '';
+        $details['worker'] = $invoice->order->provider->name ?? '';
+        $details['working_in_minutes'] = $invoice->details['working_in_minutes'] ?? '';
+        $details['order_created_at'] = $invoice->order->created_at;
+
         $invoice->details = $details;
         $invoice->save();
 
@@ -387,28 +478,33 @@ class WalletService
         return $invoice;
     }
 
+    /**
+     * Update invoice when additional costs, purchases, or other price components change.
+     *
+     * Uses InvoiceCalculator to recalculate all values and update invoice details.
+     *
+     * @param Invoice $invoice
+     * @param Order $order
+     * @return Invoice
+     */
     public function updateInvoiceAdditionalCost(Invoice $invoice, Order $order): Invoice
     {
-        [$totalAmount, $adminEarning, $providerEarning, $discount] = $this->calculateEarnings($order);
-        return $this->updateInvoicePrice($invoice, $totalAmount, $adminEarning, $providerEarning, $discount);
-    }
-
-    public function createInvoice(Order $order): Invoice
-    {
-        [$totalAmount, $adminEarning, $providerEarning, $discount] = $this->calculateEarnings($order);
-        return $this->storeInvoice($order, $totalAmount, $adminEarning, $providerEarning, $discount);
+        $calculator = $this->calculateEarnings($order);
+        return $this->updateInvoicePrice($invoice, $calculator);
     }
 
     /**
-     * @throws \Exception
+     * Create a new invoice for an order.
+     *
+     * Uses InvoiceCalculator to calculate all values and store full details.
+     *
+     * @param Order $order
+     * @return Invoice
      */
-    private function getDiscountAmount(Order $order): float
+    public function createInvoice(Order $order): Invoice
     {
-        if ($order->discount_code) {
-            return $this->discountService->calculateDiscountAmount($order->discount_code, $order->price);
-        }
-
-        return 0.0;
+        $calculator = $this->calculateEarnings($order);
+        return $this->storeInvoice($order, $calculator);
     }
 
     public function getInvoiceData(Order $order): Invoice
@@ -454,7 +550,7 @@ class WalletService
         return $user->transactions()->latest()->simplePaginate($perPage);
     }
 
-    public function getLatestPaginatedTransactions(WalletInterface $user, int $perPage = 10,$page): Paginator
+    public function getLatestPaginatedTransactions(WalletInterface $user, $page, int $perPage = 10): Paginator
     {
         return $user->transactions()->latest()->paginate($perPage, ['*'], 'page', $page);
     }

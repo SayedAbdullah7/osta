@@ -29,7 +29,7 @@ class LevelSeeder extends Seeder
                 'duration' => 'P1M' // 1 month evaluation period
             ],
             'benefits' => [
-                'commission_rate' => 0.90, // 10% platform fee
+                'commission_rate' => 0.80, // 20% platform fee
 //                'features' => ['basic_support'],
                 'badge' => 'bronze',
                 'priority' => 1
@@ -77,7 +77,7 @@ class LevelSeeder extends Seeder
                 'duration' => 'P1M'
             ],
             'benefits' => [
-                'commission_rate' => 0.80, // 20% platform fee
+                'commission_rate' => 0.90, // 10% platform fee
 //                'features' => ['premium_support', 'instant_payouts', 'featured_listing'],
                 'badge' => 'gold',
                 'priority' => 3
