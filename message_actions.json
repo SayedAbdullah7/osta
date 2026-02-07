@@ -1,0 +1,66 @@
+{
+  "message_types": [
+    "welcome_message",
+    "pay_order",
+    "provider_request_additional_cost_equals",
+    "provider_added_additional_cost_equals",
+    "provider_added_purchases_equals",
+    "provider_request_convert_to_offer_equals",
+    "provider_request_convert_to_preview",
+    "provider_converted_the_order_to_preview",
+    "user_request_cash_payment",
+    "invoice",
+    "accepted",
+    "rejected",
+    "cancelled"
+  ],
+  "action_names": [
+    "confirm_order",
+    "additional_cost",
+    "purchases",
+    "pay",
+    "cash_payment",
+    "convert_to_offer",
+    "convert_to_preview"
+  ],
+  "action_status_values": {
+    "active": "1",
+    "inactive": "0"
+  },
+  "response_values": {
+    "accept": "1",
+    "reject": "0"
+  },
+  "examples": {
+    "welcome_message": {
+      "message": "welcome_message",
+      "action_name": "confirm_order",
+      "has_response": true,
+      "description": "رسالة ترحيبية مع زر تأكيد الطلب"
+    },
+    "pay_order": {
+      "message": "pay_order 150",
+      "action_name": "pay",
+      "has_response": false,
+      "description": "رسالة دفع الطلب مع السعر",
+      "variables": {
+        "x": 150
+      }
+    },
+    "additional_cost_request": {
+      "message": "provider_request_additional_cost_equals 50",
+      "action_name": "additional_cost",
+      "has_response": true,
+      "description": "طلب تكلفة إضافية من مقدم الخدمة",
+      "variables": {
+        "x": 50
+      }
+    },
+    "cash_payment": {
+      "message": "user_request_cash_payment",
+      "action_name": "cash_payment",
+      "has_response": true,
+      "description": "طلب دفع نقدي من المستخدم"
+    }
+  }
+}

@@ -11,6 +11,18 @@ class DiscountCode extends Model
 //    protected $fillable = [
 //        'code', 'type', 'discount_value', 'valid_from', 'valid_to', 'is_active', 'used_at', 'used_by'
 //    ];
+    /**
+     * IMPORTANT FOR AI - Discount Code Fields:
+     * =========================================
+     *
+     * BEARER TYPES:
+     * - 'admin': Admin bears the entire discount (provider earnings unaffected)
+     * - 'both': Both admin and provider share the discount proportionally
+     *
+     * APPLY_TO_WARRANTY:
+     * - true: Discount applies to warranty cost too
+     * - false: Discount does NOT apply to warranty (default)
+     */
     protected $fillable = [
         'code',
         'discount_amount',
@@ -19,7 +31,25 @@ class DiscountCode extends Model
         'expires_at',
         'used_at',
         'used_by',
+        'bearer',           // 'admin' or 'both'
+        'apply_to_warranty', // true or false
     ];
+
+    /**
+     * Check if admin bears the entire discount.
+     */
+    public function isAdminOnlyBearer(): bool
+    {
+        return $this->bearer === 'admin';
+    }
+
+    /**
+     * Check if discount applies to warranty.
+     */
+    public function appliesToWarranty(): bool
+    {
+        return (bool) $this->apply_to_warranty;
+    }
 
     protected $dates = [
         'expires_at',
@@ -119,16 +149,22 @@ class DiscountCode extends Model
     /**
      * Calculate the discount amount based on the discount code.
      *
+     * Uses 'type' and 'value' columns from database:
+     * - type = 'fixed': Returns min(value, orderAmount)
+     * - type = 'percentage': Returns (value / 100) * orderAmount
+     *
      * @param  float  $orderAmount
      * @return float
      */
     public function calculateDiscountAmount(float $orderAmount): float
     {
-        if ($this->discount_percentage) {
-            return ($this->discount_percentage / 100) * $orderAmount;
+        // Use type and value columns (database schema)
+        if ($this->type === 'percentage') {
+            return ($this->value / 100) * $orderAmount;
         }
 
-        return $this->discount_amount;
+        // Fixed discount - don't exceed order amount
+        return min((float) $this->value, $orderAmount);
     }
 
     /**

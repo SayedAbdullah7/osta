@@ -15,6 +15,18 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * UserOfferService
+ *
+ * IMPORTANT FOR AI - Accepting Offers:
+ * ====================================
+ *
+ * CRITICAL: In updateOrderWithAcceptedOffer():
+ * - If offer->price = 0 (preview order): Set order->price = Setting::getPreviewCost() directly
+ * - If offer->price > 0: Call $order->calculatePrice()
+ *
+ * See Order model class-level documentation for preview orders business logic.
+ */
 class UserOfferService
 {
     use ApiResponseTrait;
@@ -261,18 +273,36 @@ class UserOfferService
 
     /**
      * Updates the order status and other details upon offer acceptance.
+     * See class-level documentation for preview orders handling.
      *
      * @param Offer $offer
      * @return void
      */
     private function updateOrderWithAcceptedOffer(Offer $offer): void
     {
-        $offer->order->update([
+        $order = $offer->order;
+
+        // Determine order price: if offer price is 0 (preview order), use preview_cost (المعيناة)
+        // Otherwise, calculate full price including additional costs and purchases
+        if ($offer->price == 0) {
+            $orderPrice = \App\Models\Setting::getPreviewCost();
+        } else {
+            $order->calculatePrice();
+            $orderPrice = $order->price;
+        }
+
+        // Update order in a single database operation
+        $order->update([
             'status' => OrderStatusEnum::ACCEPTED,
             'provider_id' => $offer->provider_id,
-            'price' => $offer->price
+            'price' => $orderPrice,
         ]);
-        $this->walletService->createInvoice($offer->order);
+
+        // CRITICAL: Refresh the model to get updated values from database
+        // Without this, createInvoice would use old values (price = 0)
+        $order->refresh();
+
+        $this->walletService->createInvoice($order);
     }
 
     /**

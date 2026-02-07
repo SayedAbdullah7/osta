@@ -84,7 +84,7 @@ class InvoiceController extends Controller
             Auth::loginUsingId(1); // Assuming admin ID 1 is a valid admin
         }
         $admin = auth()->user();
-        $respone = $walletService->payInvoiceByAdminWallet($invoice, $validated['amount'], $admin->id);
+        $respone = $walletService->payInvoiceByAdminWallet($invoice, $admin->id, $validated['amount']);
 
         if ($respone['status']) {
             return response()->json([

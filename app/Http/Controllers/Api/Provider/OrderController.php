@@ -223,7 +223,8 @@ class OrderController extends Controller
 
     public function getOrderDetails(Request $request,$orderId): \Illuminate\Http\JsonResponse
     {
-        $order = auth()->user()->orders()->where('id', $orderId)->first();
+        // $order = auth()->user()->orders()->where('id', $orderId)->first();
+        $order = Order::find($orderId);
 
         if (!$order) {
             return $this->respondNotFound();
@@ -231,6 +232,7 @@ class OrderController extends Controller
         $orderDetails = $order->orderDetails;
         $walletService = app(WalletService::class);
         $invoice = $order->invoice;
+
         if (!$invoice) {
             $invoice = $walletService->createInvoice($order);
         }

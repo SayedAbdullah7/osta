@@ -37,11 +37,11 @@ use Illuminate\Support\Facades\Log;
                     "to" => implode(',', $users),
                     "data" => json_encode($this->data($data, $msg, $event)),
                 ];
-                \log_content('sendToSocket started');
+                log_content('sendToSocket started');
 
                 Log::info('Sending data to socket', ['payload' => $payload]);
                 $response = Http::timeout(self::TIMEOUT)->retry(3, 100)->post($this->socketUrl, $payload);
-                \log_content($response->body());
+                log_content($response->body());
 
                 if ($response->successful()) {
                     Log::info('Socket response received', ['body' => $response->body()]);
@@ -51,10 +51,10 @@ use Illuminate\Support\Facades\Log;
 
                 Log::warning('Socket response failed', ['status' => $response->status(), 'body' => $response->body()]);
                 Log::warning( $response->body());
-                \log_content(['method' => 'sendToSocket', 'status' => $response->status(), 'body' => $response->body()]);
+                log_content(['method' => 'sendToSocket', 'status' => $response->status(), 'body' => $response->body()]);
 
             } catch (\Throwable $error) {
-                \log_content(['method' => 'sendToSocket', 'error' => $error->getMessage()]);
+                log_content(['method' => 'sendToSocket', 'error' => $error->getMessage()]);
                 Log::error('Socket connection failed: ' . $error->getMessage());
             }
         }

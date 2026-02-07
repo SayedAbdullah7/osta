@@ -6,6 +6,34 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * Setting Model
+ *
+ * IMPORTANT FOR AI - Settings Configuration:
+ * ===========================================
+ *
+ * 1. PREVIEW COST (المعيناة):
+ *    - Method: Setting::getPreviewCost()
+ *    - Key: 'preview_cost' in settings table
+ *    - Default: 100 (WalletService::PREVIEW_COST)
+ *    - Used for preview orders (unknown_problem = 1)
+ *
+ * 2. PREVIEW PERCENTAGES (for earnings distribution):
+ *    - Provider: Setting::getProviderPreviewPercentage()
+ *      * Key: 'provider_preview_percentage' in settings table
+ *      * Default: 0.5 (50%)
+ *      * Used for calculating provider earnings on preview orders
+ *
+ *    - Admin: Setting::getAdminPreviewPercentage()
+ *      * Key: 'admin_preview_percentage' in settings table
+ *      * Default: 0.5 (50%)
+ *      * Used for calculating admin earnings on preview orders
+ *
+ * CRITICAL: Always use Setting methods - never hardcode values.
+ * All values can be changed via database without code changes.
+ *
+ * See Order model and WalletService class-level documentation.
+ */
 class Setting extends Model
 {
     use HasFactory;
@@ -99,6 +127,39 @@ class Setting extends Model
     private static function getCacheKey()
     {
         return 'settings';
+    }
+
+    /**
+     * Get preview_cost value from Setting model or return default value.
+     * See class-level documentation for preview cost configuration.
+     *
+     * @return float The preview cost value from database or default (100)
+     */
+    public static function getPreviewCost(): float
+    {
+        return (float) self::getSetting('preview_cost', \App\Services\WalletService::PREVIEW_COST);
+    }
+
+    /**
+     * Get provider preview percentage from Setting model or return default value (0.5 = 50%).
+     * Used for calculating provider earnings on preview orders.
+     *
+     * @return float The provider preview percentage (0.0 to 1.0)
+     */
+    public static function getProviderPreviewPercentage(): float
+    {
+        return (float) self::getSetting('provider_preview_percentage', 0.5);
+    }
+
+    /**
+     * Get admin preview percentage from Setting model or return default value (0.5 = 50%).
+     * Used for calculating admin earnings on preview orders.
+     *
+     * @return float The admin preview percentage (0.0 to 1.0)
+     */
+    public static function getAdminPreviewPercentage(): float
+    {
+        return (float) self::getSetting('admin_preview_percentage', 0.5);
     }
 //
 //    /**

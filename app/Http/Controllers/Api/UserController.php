@@ -201,7 +201,7 @@ class UserController extends Controller
 
     public function profile(): \Illuminate\Http\JsonResponse
     {
-        $user = Auth::guard('user')->user()->load('country','media','reviewStatistics')->loadCount(['orders' => function ($query) {
+        $user = Auth::guard('user')->user()->load(['country','media','reviewStatistics'])->loadCount(['orders' => function ($query) {
             $query->where('status', OrderStatusEnum::DONE);
         }]);
 

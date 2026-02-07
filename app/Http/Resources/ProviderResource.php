@@ -43,6 +43,7 @@ class ProviderResource extends JsonResource
             'total_completed_orders' => $this->whenCounted('orders_count'),
             'review_statistics' => new ProviderReviewStatisticsResource($this->whenLoaded('reviewStatistics')),
             'reviews_received' =>  ReviewResource::collection($this->whenLoaded('reviewsReceived')),
+            'is_notification_enabled' => (bool) $this->deviceTokens()->where('is_set_notification', true)->exists(),
         ];
     }
 }

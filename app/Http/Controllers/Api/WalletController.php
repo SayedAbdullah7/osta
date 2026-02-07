@@ -31,7 +31,7 @@ class WalletController extends Controller
         $page = request()->get('page', 1);
         $perPage = request()->get('per_page', 10);
 //        $transactions = $this->walletService->getSimpleLatestPaginatedTransactions($user);
-        $transactions = $this->walletService->getLatestPaginatedTransactions($user, $perPage, $page);
+        $transactions = $this->walletService->getLatestPaginatedTransactions($user, $page, $perPage);
         return $this->respondWithResourceCollection(TransactionResource::collection($transactions));
     }
 

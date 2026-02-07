@@ -29,6 +29,7 @@ class UserResource extends JsonResource
             'country' => new CountryResource($this->whenLoaded('country')), // Conditionally include 'country' if it's loaded
             'total_completed_orders' => $this->whenCounted('orders_count'),
             'review_statistics' => new ProviderReviewStatisticsResource($this->whenLoaded('reviewStatistics')),
+            'is_notification_enabled' => (bool) $this->deviceTokens()->where('is_set_notification', true)->exists(),
         ];
     }
 }

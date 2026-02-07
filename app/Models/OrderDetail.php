@@ -30,4 +30,9 @@ class OrderDetail extends Model  implements HasMedia
     {
         return $query->where('name', Message::PURCHASES);
     }
+
+    public function scopePreviewCost($query)
+    {
+        return $query->where('name', Message::ACTION_CONVERT_TO_PREVIEW);
+    }
 }

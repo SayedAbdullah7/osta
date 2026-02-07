@@ -8,8 +8,41 @@ use App\Models\Order;
 use Exception;
 use Carbon\Carbon;
 
+/**
+ * DiscountService - Handles discount code operations
+ *
+ * IMPORTANT FOR AI - Discount Types:
+ * ===================================
+ *
+ * BEARER TYPES (who pays the discount):
+ * - 'admin': Admin bears entire discount (provider earnings unaffected)
+ * - 'both': Both admin and provider share discount proportionally
+ *
+ * APPLY_TO_WARRANTY:
+ * - true: Discount applies to warranty cost
+ * - false: Discount does NOT apply to warranty
+ */
 class DiscountService
 {
+    /**
+     * Get discount code by code string.
+     */
+    public function getDiscountByCode(string $code): ?DiscountCode
+    {
+        return DiscountCode::where('code', $code)->first();
+    }
+
+    /**
+     * Get discount code for an order (if applied).
+     */
+    public function getDiscountCodeForOrder(Order $order): ?DiscountCode
+    {
+        if (!$order->discount_code) {
+            return null;
+        }
+        return $this->getDiscountByCode($order->discount_code);
+    }
+
     public function calculateDiscountAmount(string $code, float $orderAmount): float
     {
         $discount = $this->getDiscountByCode($code);
@@ -19,11 +52,6 @@ class DiscountService
         }
 
         return $this->calculateDiscountValue($discount, $orderAmount);
-    }
-
-    private function getDiscountByCode(string $code): ?DiscountCode
-    {
-        return DiscountCode::where('code', $code)->first();
     }
 
     private function calculateDiscountValue(DiscountCode $discount, float $orderAmount): float

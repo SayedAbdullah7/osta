@@ -35,9 +35,10 @@ class PushToSocketJob implements ShouldQueue
      */
     public function handle()
     {
-        // \log_content('start PushToSocketJob');
+        log_content('start PushToSocketJob');
         $socketService = new SocketService();
         $socketService->sendToSocket($this->roomPrefix, $this->data, $this->users, $this->event, $this->msg);
-        // \log_content('end PushToSocketJob');
+        log_content('end PushToSocketJob');
+
     }
 }

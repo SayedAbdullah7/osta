@@ -5,13 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MessageRequest;
 use App\Http\Requests\StoreMessageRequest;
+use App\Http\Resources\InvoiceResource;
 use App\Http\Resources\MessageResource;
+use App\Http\Resources\OrderDetailResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Order;
 use App\Services\MessageService;
 use App\Services\SocketService;
+use App\Services\WalletService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -20,11 +24,13 @@ class MessageController extends Controller
 {
     use ApiResponseTrait;
 
-    protected $messageService;
+    protected MessageService $messageService;
+    protected WalletService $walletService;
 
-    public function __construct(MessageService $messageService)
+    public function __construct(MessageService $messageService, WalletService $walletService)
     {
         $this->messageService = $messageService;
+        $this->walletService = $walletService;
     }
 
 
@@ -181,16 +187,87 @@ class MessageController extends Controller
         $message = $this->messageService->createMessage($request->conversation_id, $request->order_id, $request->input('content'), $request->media);
         return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
     }
-    public function makeAction(Request $request): \Illuminate\Http\JsonResponse
+    /**
+     * Execute an action on an order (purchases, additional_cost, convert, etc.)
+     *
+     * Returns order details and invoice after action completion.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function makeAction(Request $request): JsonResponse
     {
-        $this->validate($request, [
+        $validated = $request->validate([
             'conversation_id' => 'required_without:order_id|exists:conversations,id',
             'order_id' => 'required_without:conversation_id|exists:orders,id',
             'action' => 'required|in:purchases,additional_cost,pay,cash_payment,convert_to_offer,convert_to_preview,get_invoice',
-//            'action_value' => 'required',
+            'action_value' => 'nullable|numeric|min:0',
+            'description' => 'nullable|string|max:500',
         ]);
-        $message= $this->messageService->makeAction($request->conversation_id, $request->order_id, $request->input('action'),$request->input('action_value'),(string)$request->input('description'),$request->media);
-        return $this->respondWithResource(new MessageResource($message), 'Message sent successfully');
+
+        // Get order from order_id or conversation
+        $order = $this->getOrderFromRequest($validated);
+        if (!$order) {
+            return $this->respondNotFound('Order not found');
+        }
+
+        // Execute the action
+        $message = $this->messageService->makeAction(
+            $validated['conversation_id'] ?? null,
+            $validated['order_id'] ?? null,
+            $validated['action'],
+            $validated['action_value'] ?? null,
+            $validated['description'] ?? '',
+            $request->media
+        );
+
+        // Refresh order to get updated data
+        $order->refresh();
+
+        // Build response with order details and invoice (same as getOrderDetails)
+        return $this->buildOrderDetailsResponse($order, $message);
+    }
+
+    /**
+     * Get order from request (either from order_id or conversation).
+     */
+    private function getOrderFromRequest(array $validated): ?Order
+    {
+        if (!empty($validated['order_id'])) {
+            return Order::find($validated['order_id']);
+        }
+
+        if (!empty($validated['conversation_id'])) {
+            $conversation = Conversation::find($validated['conversation_id']);
+            if ($conversation && $conversation->type === 'order') {
+                return Order::find($conversation->model_id);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Build response with order details and invoice.
+     * Same format as Provider\OrderController@getOrderDetails
+     */
+    private function buildOrderDetailsResponse(Order $order, ?Message $message): JsonResponse
+    {
+        // Get or create invoice
+        $invoice = $order->invoice ?? $this->walletService->createInvoice($order);
+
+        // Get order details
+        $orderDetails = $order->orderDetails;
+
+        return $this->apiResponse([
+            'success' => true,
+            'message' => $message ? 'Action completed successfully' : 'Action completed (no message)',
+            'result' => [
+                'details' => OrderDetailResource::collection($orderDetails),
+                'invoice' => InvoiceResource::collection([$invoice]),
+                'message' => $message ? new MessageResource($message) : null,
+            ],
+        ], 200);
     }
     public function responseAction(Request $request)
     {

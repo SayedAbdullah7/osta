@@ -83,8 +83,8 @@ class LevelSeeder extends Seeder
                 'priority' => 3
             ],
             'grace_period_months' => 1,
-            'grace_period_applies_to_orders_only' => true,
             'is_active' => true
+            'grace_period_applies_to_orders_only' => true,
         ]);
 
         // Set up level progression chain

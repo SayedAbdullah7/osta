@@ -166,8 +166,9 @@ class MessageService
     /**
      * @throws ValidationException
      * @throws \JsonException
+     * @return \App\Models\Message|null Returns null if message sending is disabled (temporary for additional_cost, purchases, convert_to_offer, convert_to_preview)
      */
-    public function makeAction($conversationId, $orderId, $action, $actionValue,string $description = '',$media = null): \App\Models\Message
+    public function makeAction($conversationId, $orderId, $action, $actionValue,string $description = '',$media = null)
     {
         $conversation = $this->getConversation($conversationId, $orderId);
         if (!$conversation) {
@@ -188,18 +189,22 @@ class MessageService
 //
 //            $actionMessage = $this->getInvoiceMessage($invoice->id??null);
 //        }
+        // TEMPORARY: Disabled message sending for these actions
+        // TODO: Re-enable message sending when needed
         if ($action == 'additional_cost') {
             $order = $conversation->model;
             $additional_cost = $actionValue;
-//            $actionMessage = $this->getAdditionalCostMessage($additional_cost,$description);
-            $actionMessage = $this->handelAddtionalCost($order, (int)$additional_cost,$description);
+            // Execute the action but don't send message
+            $this->handelAddtionalCost($order, (int)$additional_cost,$description);
+            // Return null to skip message creation
+            return null;
         }
         if ($action == 'purchases') {
             $order = $conversation->model;
-//            $actionMessage = $this->getAdditionalCostMessage($additional_cost,$description);
-//            $this->handelPurchases($order, (int)$actionValue,$media);
-            $actionMessage = $this->handelPurchases($order, (int)$actionValue,$description,$media);
-//            $media = null;
+            // Execute the action but don't send message
+            $this->handelPurchases($order, (int)$actionValue,$description,$media);
+            // Return null to skip message creation
+            return null;
         }
         if ($action == 'pay') {
             if ($conversation->model->isPreview()) {
@@ -220,21 +225,28 @@ class MessageService
             $price = $conversation->model->price;
             $actionMessage = $this->getCashPaymentMessage($price);
         }
+        // TEMPORARY: Disabled message sending for these actions
+        // TODO: Re-enable message sending when needed
         if ($action == Message::ACTION_CONVERT_TO_OFFER) {
             $order = $conversation->model;
             if(!$order->isPreview()) {
                 $this->notValidException('order already has an offer');
             }
             $offer = $actionValue;
-            $actionMessage = $this->handelConvertToOffer($order, (int)$offer);
+            // Execute the action but don't send message
+            $this->handelConvertToOffer($order, (int)$offer);
+            // Return null to skip message creation
+            return null;
         }
         if ($action == Message::ACTION_CONVERT_TO_PREVIEW) {
             $order = $conversation->model;
             if($order->isPreview()) {
                 $this->notValidException('order already is preview');
             }
-//            $actionMessage = $this->getConvertToPreviewMessage();
-            $actionMessage = $this->handelConvertToPreview($order);
+            // Execute the action but don't send message
+            $this->handelConvertToPreview($order);
+            // Return null to skip message creation
+            return null;
         }
         if (!isset($actionMessage)) {
             $this->notFoundException('action not found');
@@ -334,14 +346,14 @@ class MessageService
             $order->save();
             $offer = $order->offers()->accepted()->first();
             if (!$offer) {
-                return $this->notValidException('offer not found');
+                $this->notValidException('offer not found');
             }
             $offer->price = $price;
             $offer->save();
             $walletService->updateInvoiceAdditionalCost($invoice, $order);
         }
         if ($action == Message::ACTION_CONVERT_TO_PREVIEW) {
-            $price = $data['variables']['x']??null;
+            // Use the dedicated method for better code organization
             $walletService = app(WalletService::class);
             $invoice = $order->invoice;
             if (!$invoice) {
@@ -353,16 +365,10 @@ class MessageService
             if($order->isPreview()) {
                 $this->notValidException('order already is preview');
             }
-            $walletService->updateInvoiceAdditionalCost($invoice, $order);
-            $order->price = null;
-            $order->unknown_problem = 1;
-            $order->save();
-            $offer = $order->offers()->accepted()->first();
-            if (!$offer) {
-                return $this->notValidException('offer not found');
-            }
-            $offer->price = null;
-            $offer->save();
+
+            // Use Order model method for easier maintenance
+            $order->convertToPreview();
+
             $walletService->updateInvoiceAdditionalCost($invoice, $order);
         }
 
@@ -667,6 +673,12 @@ class MessageService
             if (!empty($users)) {
                 $conversation->loadMissing('lastMessage.media', 'providers.media');
                 $conversation->sender_id = null;
+                // Fix is_me for last_message in conversation
+                if ($conversation->lastMessage) {
+                    $lastMessageClone = clone $conversation->lastMessage;
+                    $lastMessageClone->sender_id = null;
+                    $conversation->setRelation('lastMessage', $lastMessageClone);
+                }
                 $socketService->push('user', new ConverstionResource($conversation), $users, 'chat_message_in_conversation', $msg);
             }
 
@@ -674,6 +686,12 @@ class MessageService
             if (!empty($providers)){
                 $conversation->loadMissing('lastMessage.media','users.media');
                 $conversation->sender_id = null;
+                // Fix is_me for last_message in conversation
+                if ($conversation->lastMessage) {
+                    $lastMessageClone = clone $conversation->lastMessage;
+                    $lastMessageClone->sender_id = null;
+                    $conversation->setRelation('lastMessage', $lastMessageClone);
+                }
                 $socketService->push('provider', new ConverstionResource($conversation), $providers, 'chat_message_in_conversation', $msg);
             }
 
@@ -697,47 +715,37 @@ class MessageService
         ]);
     }
 
+    /**
+     * Add additional cost to order.
+     * If order is preview (unknown_problem = 1), converts it to offer order.
+     * If value is 0, removes additional_cost and converts back to preview if applicable.
+     */
     private function handelAddtionalCost(Order $order, int $value = 0,$description = '')
     {
-        if($order->isPreview() && $value <= WalletService::PREVIEW_COST){
+        // Only validate if adding a positive value to a preview order
+        // Value 0 is allowed (it removes additional_cost and converts back to preview)
+        if($order->unknown_problem == 1 && $value > 0 && $value <= \App\Models\Setting::getPreviewCost()){
             $this->notValidException('this value is not valid for this order');
         }
+
         $walletService = app(WalletService::class);
         $invoice = $order->invoice;
         if (!$invoice) {
             $invoice = $walletService->createInvoice($order);
         }
-//        if ($invoice->payment_status == 'paid') {
-//            $this->notFoundException('this action is not available');
-//        }
-//
-        $orderDetail = $order->orderDetails()->updateOrCreate(
-            [
-                'name' => Message::ACTION_ADDITIONAL_COST
-            ],
-            [
-                'value' => $value,
-                'description' => $description
-            ]
-        );
-        $walletService->updateInvoiceAdditionalCost($invoice, $order);
-        if ($order->isPreview()) {
-            $order->unknown_problem = 0;
-//            $offer = $order->offers()->accepted()->first();
-//            if (!$offer) {
-//                return $this->notValidException('offer not found');
-//            }
-//            $offer->price = $value;
-//            $offer->save();
+
+        // Use Order model method for easier maintenance
+        // This handles both adding and removing (when value = 0)
+        $order->addAdditionalCost($value, $description);
+
+        $invoice = $walletService->updateInvoiceAdditionalCost($invoice, $order);
+        return $this->getAdditionalCostAddedMessage($value, $description, $invoice);
         }
-//        $order->price += $additionalCost;
-        $order->calculatePrice();
-
-        $order->save();
-        $invoice =  $walletService->updateInvoiceAdditionalCost($invoice, $order);
-        return  $this->getAdditionalCostAddedMessage($value,$description,$invoice);
-
-    }
+    /**
+     * Add purchases to order.
+     * Purchases are added separately and don't convert preview to offer.
+     * Uses Order model method for easier maintenance.
+     */
     private function handelPurchases(Order $order, int $value = 0,$description = '',$media = null)
     {
         $walletService = app(WalletService::class);
@@ -745,33 +753,25 @@ class MessageService
         if (!$invoice) {
             $invoice = $walletService->createInvoice($order);
         }
-//        if ($invoice->payment_status == 'paid') {
-//            $this->notFoundException('this action is not available');
-//        }
-//
-        $orderDetail = $order->orderDetails()->updateOrCreate(
-            [
-                'name' => Message::PURCHASES
-            ],
-            [
-                'value' => $value,
-                'description' => $description
-            ]
-        );
-//        $walletService->updateInvoiceAdditionalCost($invoice, $order);
-//        $order->price += $additionalCost;
-        $order->calculatePrice();
-        $order->save();
-        $invoice = $walletService->updateInvoiceAdditionalCost($invoice, $order);
+
+        // Use Order model method for easier maintenance
+        $orderDetail = $order->addPurchases($value, $description);
+
+        // Attach media if provided
         if ($media){
-//            $orderDetail->addMedia($media)->toMediaCollection('images');
             foreach ($media as $image) {
                 $orderDetail->addMedia($image)->preservingOriginal()->toMediaCollection('images');
             }
         }
-        return  $this->getPurchasesCostAddedMessage($value,$description,$invoice);
+
+        $invoice = $walletService->updateInvoiceAdditionalCost($invoice, $order);
+        return $this->getPurchasesCostAddedMessage($value, $description, $invoice);
     }
 
+    /**
+     * Handle conversion of offer order to preview order.
+     * Uses Order model method for easier maintenance.
+     */
     private function handelConvertToPreview(Order $order): ?array
     {
         $walletService = app(WalletService::class);
@@ -782,30 +782,20 @@ class MessageService
         if($order->isPreview()) {
             $this->notValidException('order already is preview');
         }
-//        $walletService->updateInvoiceAdditionalCost($invoice, $order);
-        $order->price = null;
-        $order->unknown_problem = 1;
-        $order->save();
-        $offer = $order->offers()->accepted()->first();
-        if (!$offer) {
-            return $this->notValidException('offer not found');
-        }
-        $offer->price = null;
-        $offer->save();
-        $orderDetail = $order->orderDetails()->updateOrCreate(
-            [
-                'name' => Message::ACTION_CONVERT_TO_PREVIEW
-            ],
-            [
-                'value' => WalletService::PREVIEW_COST
-            ]
-        );
+
+        // Use Order model method for easier maintenance
+        $order->convertToPreview();
+
         $invoice = $walletService->updateInvoiceAdditionalCost($invoice, $order);
-        return  $this->getConvertedToPreviewMessage($invoice);
+        return $this->getConvertedToPreviewMessage($invoice);
     }
 
     /**
      * @throws ValidationException
+     */
+    /**
+     * Convert preview order to offer order with price.
+     * Removes preview_cost OrderDetail and sets offer price.
      */
     private function handelConvertToOffer(Order $order, $price): ?array
     {
@@ -823,20 +813,9 @@ class MessageService
         if (!$price){
             $this->notValidException('offer price not valid');
         }
-        $order->price = $price;
-        $order->unknown_problem = 0;
-        $order->save();
-        $offer = $order->offers()->accepted()->first();
-        if (!$offer) {
-            $offer = new Offer();
-            $offer->order_id = $order->id;
-            $offer->provider_id = $order->provider_id;
-            $offer->status = OfferStatusEnum::ACCEPTED;
-            $offer->deleted_at = null;
-//            return $this->notValidException('offer not found');
-        }
-        $offer->price = $price;
-        $offer->save();
+
+        // Use Order model method for easier maintenance
+        $order->convertToOffer($price);
 
         $walletService->updateInvoiceAdditionalCost($invoice, $order);
         return  $this->getConvertToOfferMessage($price, $invoice);

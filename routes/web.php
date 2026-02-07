@@ -36,14 +36,28 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+Route::get('/sss', function () {
+    
+    // set auth for provider id 1;
+    // if (!Auth::guard('provider')->check()) {
+    //     // Method Illuminate\Auth\RequestGuard::loginUsingId does not exist.
+    //     $provider = \App\Models\Provider::find(1);
+    //     Auth::guard('provider')->login($provider);
+    // }
+    $order = \App\Models\Order::find(392);
+    $providerOrderController = app(\App\Http\Controllers\Api\Provider\OrderController::class);
+    return $providerOrderController->getOrderDetails(request(),$order->id);
+    });
+
 //check opcache
 Route::get('/test1', function () {
-//    $controller = app(\App\Http\Controllers\Api\User\OfferController::class);
-//    $controller->acceptOffer(199);
-//    return $this->userOfferService->acceptOffer($offerId,$user);
+return    $invoice = \App\Models\Invoice::latest()->first();
+// //    $controller = app(\App\Http\Controllers\Api\User\OfferController::class);
+// //    $controller->acceptOffer(199);
+// //    return $this->userOfferService->acceptOffer($offerId,$user);
 
-    $service = app(\App\Services\UserOfferService::class);
-return    $service->acceptOffer(199,\App\Models\User::find(2));
+//     $service = app(\App\Services\UserOfferService::class);
+// return    $service->acceptOffer(199,\App\Models\User::find(2));
 
 });
 

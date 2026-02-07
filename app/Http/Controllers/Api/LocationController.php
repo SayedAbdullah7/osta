@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enums\LocationNameEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreLocationRequest;
 use App\Http\Requests\UpdateLocationRequest;
@@ -10,7 +9,6 @@ use App\Http\Resources\LocationResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Location;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class LocationController extends Controller
 {
@@ -35,8 +33,8 @@ class LocationController extends Controller
 
         // Validate incoming request data
         $validatedData = $request->validate([
-            'id' => 'nullable',
-            'name' => ['required', 'string', 'max:255', Rule::enum(LocationNameEnum::class)],
+            'id' => 'nullable|integer|exists:locations,id',
+            'name' => ['required', 'string', 'max:255'],
 //            'street' => 'required|string|max:255',
 //            'apartment_number' => 'required|string|max:255',
 //            'floor_number' => 'required|string|max:255',
@@ -52,33 +50,24 @@ class LocationController extends Controller
         ]);
 
         if (isset($validatedData['id']) && $validatedData['id']) {
-
+            // Update existing location by ID only
             $location = $user->locations()->find($validatedData['id']);
             if (!$location) {
                 return $this->respondNotFound('Location not found');
             }
-            Location::where('name', $validatedData['name'])->where('id', '!=', $location->id)->delete();
 
             $location->name = $validatedData['name'];
             $location->latitude = $validatedData['latitude'];
             $location->longitude = $validatedData['longitude'];
-            $location->desc = $validatedData['desc']??null;
+            $location->desc = $validatedData['desc'] ?? null;
         } else {
-            // Create a new location instance
+            // Create a new location (allow multiple locations with same name)
             $location = new Location();
             $location->user_id = $user->id;
-
-            $location = Location::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'name' => $validatedData['name'],
-                ],
-                [
-                    'latitude' => $validatedData['latitude'],
-                    'longitude' => $validatedData['longitude'],
-                    'desc' => $validatedData['desc']??null,
-                ]
-            );
+            $location->name = $validatedData['name'];
+            $location->latitude = $validatedData['latitude'];
+            $location->longitude = $validatedData['longitude'];
+            $location->desc = $validatedData['desc'] ?? null;
         }
 
 

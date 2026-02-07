@@ -32,7 +32,7 @@ class FirebaseNotificationService
         }
         try {
             // Path to the service_account.json file
-            $credentialsFilePath = storage_path('app/private/service_account.json');
+            $credentialsFilePath = storage_path('app/private/firebase-credentials.json');
             // Create credentials object
             $credentials = new ServiceAccountCredentials(
                 ['https://www.googleapis.com/auth/firebase.messaging'],

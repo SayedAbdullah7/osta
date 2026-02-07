@@ -363,8 +363,12 @@ class OrderRepository implements OrderRepositoryInterface
 //        return $user->orders()->get();
 //    }
 
-    // Create a new order
-    // create order belong to user
+    /**
+     * Create a new order belonging to user.
+     *
+     * IMPORTANT: If unknown_problem = 1, automatically creates preview_cost OrderDetail
+     * and calculates price. See Order model class-level documentation.
+     */
     public function createOrderBeLongToUser(array $data, User $user): Order
     {
         $order = new Order;
@@ -387,6 +391,18 @@ class OrderRepository implements OrderRepositoryInterface
         $order->location_desc = $data['location_desc']??'';
         $order->location_name = $data['location_name'];
         $order->save();
+
+        // CRITICAL: Create preview_cost OrderDetail if unknown_problem = 1
+        if ($order->unknown_problem == 1) {
+            $order->orderDetails()->create([
+                'name' => \App\Models\Message::ACTION_CONVERT_TO_PREVIEW,
+                'value' => \App\Models\Setting::getPreviewCost()
+            ]);
+            $order->refresh();
+            $order->load('orderDetails');
+            $order->calculatePrice();
+            $order->save();
+        }
 
         return $order;
     }
