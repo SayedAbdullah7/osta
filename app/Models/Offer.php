@@ -3,61 +3,15 @@
 namespace App\Models;
 
 use App\Enums\OfferStatusEnum;
-use App\Enums\OrderCategoryEnum;
-use App\Enums\OrderStatusEnum;
-use App\Scopes\CustomSoftDeletingScope;
-use App\Services\ProviderOfferService;
-use App\Traits\NewSoftDeletes;
-use App\Traits\SoftDeletesWithFutureDeletion;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Offer extends Model
 {
     use HasFactory;
-//    use SoftDeletes;
-//    use SoftDeletesWithFutureDeletion;
-//    use SoftDeletes;
 
-//    use NewSoftDeletes;
-
-//    protected static function boot()
-//    {
-//        parent::boot();
-//
-//        static::addGlobalScope(new CustomSoftDeletingScope);
-//    }
     protected $guarded = [];
-//    public const LIFETIME = 2; // in minutes
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::creating(static function ($model) {
-//            if ($model->deleted_at === null) {
-//                $model->deleted_at = Carbon::now()->addMinutes(ProviderOfferService::MAX_OFFER_TIME);
-//            }
-        });
-//        static::addGlobalScope('hasOrders', function (Builder $builder) {
-//            $builder->has('order');
-//        });
-    }
-
-//    protected static function booted()
-//    {
-//        // Apply the global scope within the booted method
-//        static::addGlobalScope('offersWithVisibleOrders', static function ($builder) {
-//            if (Order::$applyRecentScope) {
-//                // Apply the condition based on the Order model's static properties
-//                $builder->whereHas('order', function ($query) {
-//                    $query->where('created_at', '>=', Carbon::now()->subHours(Order::$recentDurationHours));
-//                });
-//            }
-//        });
-//    }
 
     public function order()
     {
@@ -131,7 +85,7 @@ class Offer extends Model
      */
     public function scopeRejected(Builder $query): Builder
     {
-        return $query->where('status', OrderStatusEnum::REJECTED);
+        return $query->where('status', OfferStatusEnum::REJECTED);
     }
 
     /**

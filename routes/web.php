@@ -37,7 +37,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 Route::get('/sss', function () {
-    
+
     // set auth for provider id 1;
     // if (!Auth::guard('provider')->check()) {
     //     // Method Illuminate\Auth\RequestGuard::loginUsingId does not exist.
@@ -488,6 +488,7 @@ Route::get('/code',function (){
 //Route::resource('area', \App\Http\Controllers\AreaController::class);
 Route::post('/upload-image', [\App\Http\Controllers\ServiceController::class,'uploadImage'])->name('upload-image');
     Route::get('/update', [\App\Http\Controllers\SchemaUpdateController::class, 'updateSchema']);
+    Route::get('/add-random-descriptions', [\App\Http\Controllers\SchemaUpdateController::class, 'addRandomDescriptions'])->name('add-random-descriptions');
 
 Route::resource('area', \App\Http\Controllers\AreaController::class);
 Route::resource('service', \App\Http\Controllers\ServiceController::class);
@@ -692,6 +693,53 @@ Route::get('/auth', function () {
 //Route::get('/test2', function () {
 //})->name('user.index');
 Route::get('/users', [\App\Http\Controllers\SchemaUpdateController::class, 'users']);
+
+Route::get('/delete-telescope-404', function () {
+    try {
+        // Get all request entries with 404 status
+        // Using LIKE as it's most compatible across MySQL versions
+        $entries = DB::table('telescope_entries')
+            ->where('type', 'request')
+            ->where('content', 'LIKE', '%"response_status":404%')
+            ->delete();
+
+            return response()->json([
+                'message' => 'Successfully deleted 404 request entries from Telescope',
+            ]);
+
+        if ($entries->isEmpty()) {
+            return response()->json([
+                'message' => 'No 404 request entries found in Telescope',
+                'deleted_count' => 0
+            ]);
+        }
+
+        $uuids = $entries->pluck('uuid')->toArray();
+        $count = count($uuids);
+
+        // Delete related entries from telescope_entries_tags first (foreign key constraint)
+        $tagsDeleted = DB::table('telescope_entries_tags')
+            ->whereIn('entry_uuid', $uuids)
+            ->delete();
+
+        // Delete entries from telescope_entries
+        $entriesDeleted = DB::table('telescope_entries')
+            ->whereIn('uuid', $uuids)
+            ->delete();
+
+        return response()->json([
+            'message' => 'Successfully deleted 404 request entries from Telescope',
+            'entries_deleted' => $entriesDeleted,
+            'tags_deleted' => $tagsDeleted,
+            'total_entries_found' => $count
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Failed to delete Telescope entries',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
 
 Route::get('/', function () {
     return view('welcome');

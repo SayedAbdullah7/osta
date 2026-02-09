@@ -24,24 +24,6 @@ use Illuminate\Support\Facades\Storage;
 
 class OrderRepository implements OrderRepositoryInterface
 {
-//    public function __construct(OrderRepositoryInterface $orderRepository)
-//    {
-//        $this->orderRepository = $orderRepository;
-//    }
-
-//    public function getOrdersForUser(User $user): Collection
-//    {
-//        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
-//            $q->pending()->latest('id')->take(2);
-//        },'offers.provider'])->orderByDesc('id')->get();
-//    }
-//
-//    public function getOrdersForUserWithStatusIn(mixed $user, array $statuses)
-//    {
-//        return $user->orders()->withCount('offers')->with(['service', 'subServices', 'offers' => function ($q) {
-//            $q->pending()->latest('id')->take(2);
-//        },'offers.provider'])->whereIn('status', $statuses)->orderByDesc('id')->get();
-//    }
     /**
      * Base query for fetching orders with common relationships and conditions.
      *
@@ -122,14 +104,7 @@ class OrderRepository implements OrderRepositoryInterface
     public function find(int $id)
     {
         return Order::find($id);
-        return Order::findOrFail($id);
     }
-    // find order that belongs to provider
-//    public function findOrderBelongToProvider(int $id, Provider $provider): Order
-//    {
-//        return $provider->orders()->findOrFail($id);
-//    }
-
     /**
      * Retrieve and return a paginated list of pending orders associated with the authenticated provider.
      *
@@ -152,7 +127,6 @@ class OrderRepository implements OrderRepositoryInterface
         $providerLatitude = $params['latitude'] ?? null;
         $serviceIds = $params['service_id'] ?? null;
         $page = $params['page'] ?? 1;
-//        $ids = $params['ids'] ?? [];
         $ids = array_filter($params['ids'] ?? [], static fn($value) => $value !== null);
 
         $providerServiceIds = $provider->services()->when($serviceIds, function ($query) use ($serviceIds) {
@@ -160,7 +134,6 @@ class OrderRepository implements OrderRepositoryInterface
         })->pluck('services.id')->toArray();
 
         $query = Order::withRelationsInProvider()->pending()
-//            ->whereIn('service_id', $providerServiceIds)
             ->whereDoesntHave('cancellationProviders', function ($query) use ($providerId) {
             $query->where('provider_id', $providerId);
         })->whereDoesntHave('offers', static function ($query) use ($providerId) {
@@ -168,9 +141,7 @@ class OrderRepository implements OrderRepositoryInterface
                 ->where(static function($query) {
                     $query->pending()
                         ->orWhere(static function($query) {
-                            $query
-                           ->rejected();
-//                                ->IsSecond(); nour  ask this update
+                            $query->rejected();
                         });
                 });
         })->when(!empty($ids), static function ($query) use ($ids) {
@@ -202,14 +173,6 @@ class OrderRepository implements OrderRepositoryInterface
             $sortBy === 'distance' ? 'distance' : ($sortBy === 'time' ? 'start' : 'id'),
             $sortDesc ? 'desc' : 'asc'
         );
-//            $query->when($sortBy === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude, $sortDesc) {
-//            $haversine = Order::calculateHaversineDistance($providerLatitude, $providerLongitude);
-//            return $query->select('orders.*', $haversine)
-////                ->join('locations', 'orders.location_id', '=', 'locations.id')
-//                ->orderBy('distance', $sortDesc ? 'desc' : 'asc');
-//        }, function ($query) use ($sortBy, $sortDesc) {
-//            return $query->orderBy($sortBy === 'time' ? 'start' : 'id', $sortDesc ? 'desc' : 'asc');
-//        });
     }
 
     protected function baseQueryForGetProviderOrders(Provider $provider): Builder | HasMany
@@ -256,28 +219,6 @@ class OrderRepository implements OrderRepositoryInterface
         return $provider->orders()->with('user')->orderByDesc('id')->get();
     }
 
-//    public function getPendingOrders(int $perPage, string $sortBy, bool $sortDesc, array $serviceIds, int $providerId, ?float $providerLatitude, ?float $providerLongitude): Collection
-//    {
-//        $query = Order::with('location')->pending()->whereIn('service_id', $serviceIds)->whereDoesntHave('cancellationProviders', function ($query) use ($providerId) {
-//            $query->where('provider_id', $providerId);
-//        });
-//        $query = $this->applyOrderBy($query, $sortBy, $sortDesc, $providerLatitude, $providerLongitude);
-//
-//        return $query->simplePaginate($perPage);
-//    }
-//
-//    private function applyOrderBy($query, string $sortBy, bool $sortDesc, ?float $providerLatitude, ?float $providerLongitude)
-//    {
-//        return $query->when($sortBy === 'distance' && $providerLongitude && $providerLatitude, function ($query) use ($providerLatitude, $providerLongitude, $sortDesc) {
-//            $haversine = Order::calculateHaversineDistance($providerLatitude, $providerLongitude);
-//            return $query->select('orders.*', $haversine)
-//                ->join('locations', 'orders.location_id', '=', 'locations.id')
-//                ->orderBy('distance', $sortDesc ? 'desc' : 'asc');
-//        }, function ($query) use ($sortBy, $sortDesc) {
-//            return $query->orderBy($sortBy === 'time' ? 'start' : 'id', $sortDesc ? 'desc' : 'asc');
-//        });
-//    }
-
     public function isAvailableToBeRemovedByProvider(Order $order): bool
     {
         return !$order->provider_id && $order->status === OrderStatusEnum::PENDING;
@@ -295,21 +236,21 @@ class OrderRepository implements OrderRepositoryInterface
 
     public function isOrderAvailableToBeDoneByProvider(Order $order, Provider $provider): bool
     {
-
-        return $this->isOrderBelongToProvider($order, $provider);
-//        return $order->status === OrderStatusEnum::ALMOST_DONE && $this->isOrderBelongToProvider($order,$provider);
+        return $order->status === OrderStatusEnum::ALMOST_DONE && $this->isOrderBelongToProvider($order, $provider);
     }
 
     public function updateOrderToComing($order): Order
     {
         $order->status = OrderStatusEnum::COMING;
-        return $order->save();
+        $order->save();
+        return $order;
     }
 
     public function updateOrderToAlmostDone($order): Order
     {
         $order->status = OrderStatusEnum::ALMOST_DONE;
-        return $order->save();
+        $order->save();
+        return $order;
     }
 
     public function updateOrderToDone($order): Order
@@ -357,12 +298,6 @@ class OrderRepository implements OrderRepositoryInterface
         }
 
 
-    // Implement the logic to get orders for a user
-//    public function getOrdersForUser(User $user): Collection
-//    {
-//        return $user->orders()->get();
-//    }
-
     /**
      * Create a new order belonging to user.
      *
@@ -375,16 +310,12 @@ class OrderRepository implements OrderRepositoryInterface
         $order->start = $data['start'] ?? null;
         $order->end = $data['end'] ?? null;
         $order->category = $data['category'];
-//        $order->space = $data['space']??null;
         $order->unknown_problem = $data['unknown_problem'] ?? false;
         if ($data['category'] != OrderCategoryEnum::Other->value) {
             $order->warranty_id = $data['warranty_id'] ?? null;
         }
         $order->desc = $data['desc'] ?? null;
         $order->service_id = $data['service_id'];
-        //$order->provider_id = $data['provider_id'];
-//        $order->location_id = $data['location_id']??null;
-
         $order->user_id = $user->id;
         $order->location_latitude = $data['location_latitude'];
         $order->location_longitude = $data['location_longitude'];
@@ -416,9 +347,8 @@ class OrderRepository implements OrderRepositoryInterface
     public function attachImagesToOrder(array $data, Order $order): void
     {
         foreach ($data as $image) {
-            $order->addMedia($image)->toMediaCollection('images'); // Adjust the collection name as needed
+                $order->addMedia($image)->toMediaCollection('images');
         }
-//        return $order;
     }
 
     public function attachVoiceToOrder($file, Order $order)
@@ -474,23 +404,17 @@ class OrderRepository implements OrderRepositoryInterface
             if (isset($data['sub_services_ids']) && isset($data['sub_service_quantities'])) {
                 $subServices = $data['sub_services_ids'];
                 $quantities = $data['sub_service_quantities'];
-//                Log::info($quantities);
-                // store sub services and quantities in json file by Storge
 
                 // Ensure the number of sub-services and quantities match
                 if (count($subServices) === count($quantities)) {
                     $order->subServices()->attach(array_combine($subServices, $quantities));
-                } else {
-
-                    // Handle mismatch error as needed
-//                    throw new Exception('Sub-services and quantities must match.');
                 }
             }
 
             // Attach images to the order
             if (isset($data['images'])) {
                 foreach ($data['images'] as $image) {
-                    $media = $order->addMedia($image)->toMediaCollection('images'); // Adjust the collection name as needed
+                    $order->addMedia($image)->toMediaCollection('images');
                 }
             }
 

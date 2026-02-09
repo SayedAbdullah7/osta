@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\MessageResource;
 use App\Http\Resources\ProviderResource;
 use App\Http\Resources\ServiceResource;
+use App\Http\Resources\SubServiceCategoryResource;
 use App\Http\Resources\SubServiceResource;
 use App\Http\Traits\Helpers\ApiResponseTrait;
 use App\Models\Service;
 use App\Models\Setting;
 use App\Models\SubService;
+use App\Models\SubServiceCategory;
 use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -25,13 +27,7 @@ class ServiceController extends Controller
      */
     public function service_index()
     {
-//        $response = Cache::rememberForever('services', function () {
-//            return Service::all();
-//            return $this->respondWithResource(ServiceResource::collection(Service::all()), '');
-            return $this->respondWithResource(ServiceResource::collection(Service::whereNot('category',OrderCategoryEnum::Other)->get()), '');
-
-//        });
-        return $response;
+        return $this->respondWithResource(ServiceResource::collection(Service::whereNot('category', OrderCategoryEnum::Other)->get()), '');
     }
 
     public function sub_service_index()
@@ -77,6 +73,35 @@ class ServiceController extends Controller
                     'message' => 'Sub Services fetched successfully',
                 ], 200);
             }
+
+            // If loadSpaces is false, group by real categories from database
+            if (!$loadSpaces) {
+                $categories = SubServiceCategory::when($service_id, fn($query) => $query->where('service_id', $service_id))
+                    ->with(['subServices' => function ($query) use ($service_id, $loadSpaces) {
+                        $query->when($service_id, fn($q) => $q->where('service_id', $service_id))
+                            ->with(['spaces' => function ($q) use ($loadSpaces) {
+                                $q->whereRaw('1 = 0');
+                            }]);
+                    }])
+                    ->orderBy('order')
+                    ->get();
+
+                // If no categories exist, return sub-services without categories
+                if ($categories->isEmpty()) {
+                    return $this->respondWithResource(
+                        SubServiceResource::collection($subServices),
+                        'Sub Services fetched successfully',
+                        200
+                    );
+                }
+
+                return $this->apiResponse([
+                    'success' => true,
+                    'result' => SubServiceCategoryResource::collection($categories),
+                    'message' => 'Sub Services fetched successfully',
+                ], 200);
+            }
+
             // Return the sub-services as a resource collection
             return $this->respondWithResource(
                 SubServiceResource::collection($subServices),
@@ -84,27 +109,6 @@ class ServiceController extends Controller
                 200
             );
 //        });
-        return $response;
-
-        $service_id = request()->service_id;
-        $subServices = SubService::with('spaces')->when($service_id, function ($query, $service_id) {
-            $query->where('service_id', $service_id);
-        })->get();
-
-        if (request()->group_by_type) {
-            $subServices = collect(['new' => collect(), 'fix' => collect()])->merge($subServices->groupBy('type'));
-
-            return $this->apiResponse(
-                [
-                    'success' => true,
-                    'result' => $subServices,
-                    'message' => 'Sub Services fetched successfully',
-                ]
-                , 200);
-//            return $this->respondSuccess($subServices, '', 200);
-        }
-//        return $subServices;
-        return $this->respondWithResource(SubServiceResource::collection($subServices), '', 200);
     }
 
     /**

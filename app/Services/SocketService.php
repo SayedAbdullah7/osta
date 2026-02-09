@@ -12,24 +12,24 @@ use Illuminate\Support\Facades\Log;
     private const ROOM_PREFIX = '.users.';
     private string $socketUrl;
 
-    public function     __construct()
+    public function __construct()
     {
-        $this->socketUrl = env('HTTP_SOCKET');
+        $this->socketUrl = config('services.socket.url');
     }
-        public function push($roomPrefix, $data, array $users, $event, $msg = null, $priority = null)
-        {
 
-            if (empty($roomPrefix) || empty($users) || empty($event)) {
-                throw new \InvalidArgumentException('Invalid parameters for socket push.');
-            }
-//            $this->sendToSocket($roomPrefix, $data, $users, $event, $msg);
-            PushToSocketJob::dispatch($roomPrefix, $data, $users, $event, $msg)
-                ->onQueue($priority ?? env('SOCKET_JOB_QUEUE', 'default'));
+    public function push($roomPrefix, $data, array $users, $event, $msg = null, $priority = null)
+    {
+        if (empty($roomPrefix) || empty($users) || empty($event)) {
+            throw new \InvalidArgumentException('Invalid parameters for socket push.');
         }
 
-        public function sendToSocket($roomPrefix, $data, $users, $event, $msg = null)
-        {
-            $room = env('APP_NAME') . '.' . $roomPrefix;
+        PushToSocketJob::dispatch($roomPrefix, $data, $users, $event, $msg)
+            ->onQueue($priority ?? config('services.socket.job_queue', 'default'));
+    }
+
+    public function sendToSocket($roomPrefix, $data, $users, $event, $msg = null)
+    {
+        $room = config('app.name') . '.' . $roomPrefix;
 
             try {
                 $payload = [

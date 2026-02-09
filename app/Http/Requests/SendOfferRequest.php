@@ -41,26 +41,10 @@ class SendOfferRequest extends FormRequest
 
         return [
             'order_id' => 'required',
-            'latitude' => 'required','max:15',
-            'longitude' => 'required','max:15',
+            'latitude' => ['required', 'max:15'],
+            'longitude' => ['required', 'max:15'],
             'time' => 'required',
             'price' => $priceRules,
         ];
-//        return [
-////             'order_id' => 'required|exists:orders,id',
-//            'order_id' => 'required',
-//            'latitude' => 'required','max:15',
-//            'longitude' => 'required','max:15',
-//            'price' => [
-////                'required', 'numeric', 'min:0',
-//                'required', 'numeric', 'min:0',
-//                function ($attribute, $value, $fail) {
-//                    $order = \App\Models\Order::find($this->order_id);
-//                    if ($order && $value > ($max = $order->maxAllowedOfferPrice())) {
-//                        $fail('The price must be less than or equal to ' . $max);
-//                    }
-//                },
-//            ],
-//        ];
     }
 }

@@ -7,10 +7,12 @@ use App\DataTables\SubServiceDataTable;
 use App\Http\Requests\dashboard\StoreUpdateSubServiceRequest;
 use App\Models\Service;
 use App\Models\SubService;
+use App\Http\Traits\HandlesImageUpload;
 use Illuminate\Http\Request;
 
 class SubServiceController extends Controller
 {
+    use HandlesImageUpload;
     /**
      * Display a listing of the resource.
      */
@@ -144,36 +146,5 @@ class SubServiceController extends Controller
     }
 
 
-    public function handleImageUpload(Request $request, $subService)
-    {
-        // Check if the 'uploaded_images' field exists and is not empty
-        if (!empty($request->uploaded_images) && isset($request->uploaded_images[0])) {
-            // Get the first image filename from the uploaded_images array
-            $imageName = $request->uploaded_images[0];
-
-            // Define the full path where the image is stored (assuming it's already uploaded in the public 'uploads' folder)
-            $pathToMedia = public_path('uploads/' . $imageName);
-
-            // Check if the image file exists at the specified path
-            if (file_exists($pathToMedia)) {
-                // If the subService is provided, clear the existing image from the media collection (for update)
-                if ($subService->hasMedia('default')) {
-                    $subService->clearMediaCollection('default'); // Remove the old image
-                }
-
-                // Add the new image to the media collection (assuming 'default' is the media collection name)
-                $subService->addMedia($pathToMedia)->toMediaCollection('default');
-
-                // Return true if the image is successfully processed
-                return true;
-            } else {
-                // Return false if the image doesn't exist at the specified path
-                return false;
-            }
-        }
-
-        // Return false if no image is provided
-        return false;
-    }
 
 }

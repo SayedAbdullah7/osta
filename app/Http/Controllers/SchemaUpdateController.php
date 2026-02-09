@@ -15,6 +15,11 @@ class SchemaUpdateController extends Controller
     }
     public function updateSchema()
     {
+        Schema::table('space_sub_service', static function (Blueprint $table) {
+            if (!Schema::hasColumn('space_sub_service', 'description')) {
+                $table->text('description')->nullable()->after('max_price');
+            }
+        });
 //        Schema::table('payments', static function (Blueprint $table) {
 //            $table->boolean('is_reviewed')->default(true);
 //
@@ -129,5 +134,45 @@ class SchemaUpdateController extends Controller
         });
 
         return response()->json(['message' => 'Schema updated successfully']);
+    }
+
+    public function addRandomDescriptions()
+    {
+        $spaceSubServices = \App\Models\SpaceSubService::with(['space', 'subService'])
+            ->where(function($query) {
+                $query->whereNull('description')
+                    ->orWhere('description', '');
+            })
+            ->get();
+
+        $descriptions = [
+            'فيلا فاخرة مكونة من 5 غرف نوم مع حمامات ملحقة، صالة واسعة، مطبخ مجهز',
+            'شقة راقية مكونة من 3 غرف نوم، صالة معيشة مفتوحة على المطبخ الحديث',
+            'دوبلكس أنيق من طابقين: صالة استقبال ومطبخ في الطابق الأرضي، 4 غرف نوم في الطابق العلوي',
+            'شقة ديلوكس مكونة من غرفتين نوم، صالة معيشة مفتوحة على المطبخ المجهز',
+            'فيلا كلاسيكية مكونة من 6 غرف نوم، صالة استقبال، صالة جلوس عائلية، مطبخ كبير',
+            'شقة عائلية مكونة من 4 غرف نوم، صالة معيشة، مطبخ مجهز، 3 حمامات',
+            'بنتهاوس فاخر مكون من 3 غرف نوم، صالة معيشة مفتوحة، مطبخ جزيرة',
+            'فيلا حديثة مكونة من 5 غرف نوم، صالة استقبال، مطبخ كبير، مكتب',
+            'شقة عصرية مكونة من 3 غرف نوم، صالة معيشة، مطبخ مفتوح مجهز',
+            'استوديو مفتوح مع منطقة معيشة ونوم، مطبخ صغير، حمام حديث',
+            'شقة من غرفتين نوم مع صالة معيشة، مطبخ مجهز، بلكونة صغيرة',
+            'فيلا مكونة من 7 غرف نوم، صالة استقبال، مطبخ رئيسي وصيفي، مكتب، غرفة سينما',
+        ];
+
+        $updated = 0;
+        foreach ($spaceSubServices as $spaceSubService) {
+            $spaceSubService->description = $descriptions[array_rand($descriptions)] . ' - ' .
+                ($spaceSubService->space->name ?? '') . ' - ' .
+                ($spaceSubService->subService->name ?? '');
+            $spaceSubService->save();
+            $updated++;
+        }
+
+        return response()->json([
+            'message' => 'تم إضافة الوصف بنجاح',
+            'updated_count' => $updated,
+            'total_found' => $spaceSubServices->count()
+        ]);
     }
 }

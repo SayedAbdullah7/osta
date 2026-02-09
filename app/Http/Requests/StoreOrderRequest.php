@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\OrderCategoryEnum;
 use App\Enums\OrderWarrantyEnum;
+use App\Models\SubService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -30,12 +31,8 @@ class StoreOrderRequest extends FormRequest
         return [
             'unknown_problem' => 'boolean',
             'category' => ['required', Rule::enum(OrderCategoryEnum::class)],
-//            'space' => 'required_if:category,' . OrderCategoryEnum::SpaceBased->value . '|max:15',
-//            'start' => 'required|date_format:Y-m-d H:i',
-//            'end' => 'nullable|date_format:Y-m-d H:i',
             'warranty_id' => ['nullable', Rule::enum(OrderWarrantyEnum::class)],
             'desc' => 'max:255',
-//            'desc' => 'required_if:unknown_problem,true|max:255',
             'service_id' => 'required|exists:services,id',
             'location_latitude' => [
                 'required_without_all:location_id',
@@ -66,21 +63,29 @@ class StoreOrderRequest extends FormRequest
                     }
                 },
             ],
-            'sub_services_ids' => 'array',
+            'sub_services_ids' => [
+                'array',
+                function ($attribute, $value, $fail) {
+                    if (!empty($value) && $this->input('service_id')) {
+                        $invalidIds = SubService::whereIn('id', $value)
+                            ->where('service_id', '!=', $this->input('service_id'))
+                            ->pluck('id')
+                            ->toArray();
+                        if (!empty($invalidIds)) {
+                            $fail('The selected sub-services do not belong to the specified service.');
+                        }
+                    }
+                },
+            ],
             'sub_services_ids.*' => 'exists:sub_services,id',
             'sub_service_quantities' => 'array',
             'sub_service_quantities.*' => 'required|integer|min:1',
-
-//            'sub_services_ids' => 'required|array|exists:sub_services,id',
-//            'sub_service_quantities.*' => 'required|integer|min:1',
-//            'sub_services.*.sub_services_ids' => 'required|exists:sub_services,id',
-//            'sub_services.*.sub_service_quantities' => 'required|integer|min:1',
+            'spaces_ids' => 'nullable|array',
+            'spaces_ids.*' => 'nullable|exists:spaces,id',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,svg,webp|max:5048',
-//            'voice_desc' => 'file|mimes:audio/mpeg,audio/wav,audio/mp3|max:10240', // 10MB Max
             'voice_desc' => [
-                'file',              // Validates that the input is a file
-//                'mimes:mp3,wav,ogg,aac',// Specifies allowed file types
-                'max:5120',         // Maximum file size in kilobytes (50 MB)
+                'file',
+                'max:5120',
             ],
 
         ];

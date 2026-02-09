@@ -11,10 +11,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class OrderDetail extends Model  implements HasMedia
 {
     use HasFactory;
-    use HasFactory;
     use InteractsWithMedia;
-
-//    const NAME_ADDITIONAL_COST = 'additional_cost';
 
     public function order()
     {

@@ -58,12 +58,7 @@ class UserOfferService
 
     public function getOffers($user): JsonResponse
     {
-//        $offers = Offer::whereHas('order', function ($query) use ($user) {
-//            $query->where('user_id', $user->id)->pending();
-//        })->get();
         $offers = $this->getPendingOffersForUser($user);
-//        $offers = $user->orders()->pending()->where('offers.status', OrderStatusEnum::PENDING)->get();
-
         return $this->respondWithResource(OfferResource::collection($offers));
     }
 
@@ -226,15 +221,6 @@ class UserOfferService
             );
         }
 
-//        // Batch push notification to user for multiple deleted offers
-//        $this->socketService->push(
-//            'user',
-//            OfferResource::collection($offers),
-//            [$userId],
-//            'offers_deleted',
-//            'Multiple offers deleted'
-//        );
-
         // Delete offers by IDs
         Offer::whereIn('id', $offerIdsToDelete)
             ->delete();
@@ -255,15 +241,6 @@ class UserOfferService
             return;
         }
 
-
-//        foreach ($offers as $offer) {
-//            $order = $offer->order;
-//            $offerResource = new OfferResource($offer);
-//            $this->socketService->push('provider', $offerResource, [$offer->provider_id], 'offer_deleted', "Offer deleted #" . $offer->id);
-//            if ($order && $order->id != $acceptedOrderId) {
-//                $this->socketService->push('user',$offerResource, [$order->user_id], 'offer_deleted', "Offer deleted #" . $offer->id);
-//            }
-//        }
         // Collect IDs of offers to delete
         $offerIdsToDelete = $offers->pluck('id')->toArray();
         // Delete offers by IDs
@@ -357,141 +334,10 @@ class UserOfferService
             $this->socketService->push($target, new OfferResource($offer), [$offer->provider_id], 'offer_deleted', "Offer deleted #" . $offer->id);
         }
     }
-
-
-
-//    /**
-//     * Delete other offers for the same order.
-//     *
-//     * @param int $orderId
-//     * @param int $acceptedOfferId
-//     * @return void
-//     */
-//    private function deleteOtherOffersForOrder(int $orderId, int $acceptedOfferId): void
-//    {
-//        $offers = Offer::where('order_id', $orderId)->where('id', '!=', $acceptedOfferId)->get();
-//
-//    }
-//
-//    /**
-//     * Delete other offers for the same order.
-//     *
-//     * @param int $orderId
-//     * @param int $acceptedOfferId
-//     * @return void
-//     */
-//    private function deleteOtherOffersForOrder(int $orderId, int $acceptedOfferId): void
-//    {
-//        $offers = Offer::where('order_id', $orderId)->where('id', '!=', $acceptedOfferId)->get();
-//
-//        foreach ($offers as $offer) {
-//            $this->socketService->push('provider', new OfferResource($offer), [$offer->provider_id], 'offer_deleted', "Offer deleted #" . $offer->id);
-//        }
-//
-//        $this->socketService->push('user', OfferResource::collection($offers), [$offers->first()->order->user_id], 'offers_deleted', 'Multiple offers deleted');
-//    }
-//
-//    /**
-//     * Delete other offers from the same provider across different orders.
-//     *
-//     * @param int $providerId
-//     * @param int $acceptedOfferId
-//     * @return void
-//     */
-//    private function deleteOtherOffersForProvider(int $providerId, int $acceptedOfferId): void
-//    {
-//        $offers = Offer::where('provider_id', $providerId)
-//            ->where('id', '!=', $acceptedOfferId)
-//            ->where('status', OfferStatusEnum::PENDING)
-//            ->get();
-//
-//        foreach ($offers as $offer) {
-//            $this->socketService->push('user', new OfferResource($offer), [$offer->order->user_id], 'offer_deleted', "Offer deleted #" . $offer->id);
-//        }
-//
-//        $this->socketService->push('provider', OfferResource::collection($offers), [$providerId], 'offers_deleted', 'Multiple offers deleted');
-//    }
-//
-//
-//    public function deleteOffersRealTime($offers)
-//    {
-//        $offerIds = $offers->pluck('id');
-//        Offer::whereIn('id', $offerIds)->delete();
-//
-//        $providerIds = $offers->pluck('provider_id');
-//        $userIds = $offers->pluck('provider_id');
-//
-////        $data = [];
-////        $msg = '';
-////        $event = 'delete';
-////        $socketService = new SocketService();
-////        $socketService->push('offers', $data, $offerIds, $event, $msg);
-////        $socketService = new SocketService();
-//
-//    }
-//
-//
-//    /**
-//     * Update the order to accepted status.
-//     *
-//     * @param Order $order
-//     * @param int $providerId
-//     * @param float $price
-//     * @return Order
-//     */
-//    private function updateOrderToAccepted(Order $order, int $providerId, float $price): Order
-//    {
-//        $order->status = OrderStatusEnum::ACCEPTED;
-//        $order->provider_id = $providerId;
-//        $order->price = $price;
-//        $order->save();
-//
-//        $this->walletService->createInvoice($order);
-//
-//        return $order;
-//    }
-//
-//    public function createConversationForOrder($order)
-//    {
-//        $conversation = $order->conversation;
-//        if (!$conversation) {
-//            $conversation = new Conversation();
-//            $conversation->model_id = $order->id;
-//            $conversation->model_type = get_class($order);
-//            $conversation->type = 'order';
-//            $conversation->save();
-//
-////            $conversation->participants()->attach($order->user_id);
-//
-//            $conversation->messages()->create([
-//                'content' => 'Order accepted, number #' . $order->id,
-////                'sender_id' => $order->user_id,
-////                'sender_type' => get_class($order->provider),
-//            ]);
-//        }
-//        return $conversation;
-//    }
-//
-//
-//    /**
-//     * Push accepted offer to the socket.
-//     *
-//     * @param Offer $offer
-//     * @return void
-//     */
-//    private function pushAcceptedToSocket(Offer $offer): void
-//    {
-//        $this->socketService->push('provider', new OfferResource($offer), [$offer->provider_id], 'offer_accepted', "Offer accepted #" . $offer->id);
-//    }
-//
-////    public function pushDeletedOffersToSocket($offersId): void
-////    {
-////
-////    }
     private function pushAcceptedOfferToFirebase(Offer $offer)
     {
         $firebaseService = new FirebaseNotificationService();
         $provider_id = $offer->provider_id;
-        $firebaseService->sendNotificationToUser([],[],'Offer Accepted','Your offer has been accepted');
+        $firebaseService->sendNotificationToUser([], [$provider_id], 'Offer Accepted', 'Your offer has been accepted');
     }
 }

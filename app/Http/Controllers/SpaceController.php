@@ -44,12 +44,14 @@ class SpaceController extends Controller
         $spaceId = $request->input('space_id');
         $subServiceId = $request->input('sub_service_id');
         $maxPrice = $request->input('max_price');
+        $description = $request->input('description');
 
         // Create a new entry
         $spaceSubService = new SpaceSubService();
         $spaceSubService->space_id = $spaceId;
         $spaceSubService->sub_service_id = $subServiceId;
         $spaceSubService->max_price = $maxPrice;
+        $spaceSubService->description = $description;
         $spaceSubService->save(); // Save the record
 
 
@@ -130,7 +132,7 @@ class SpaceController extends Controller
 
 //        unset($spaceSubService->id);
 //        $spaceSubService->save(); // Save the updated record
-        $spaceSubService->update($request->only([ 'max_price']));
+        $spaceSubService->update($request->only(['max_price', 'description']));
         return response()->json(['status' => true, 'msg' => 'تم الحفظ بنجاح']);
     }
 

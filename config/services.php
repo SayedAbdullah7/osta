@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'socket' => [
+        'url' => env('HTTP_SOCKET'),
+        'job_queue' => env('SOCKET_JOB_QUEUE', 'default'),
+    ],
+
 ];

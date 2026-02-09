@@ -18,7 +18,6 @@ use App\Models\Location;
 use App\Models\Order;
 use App\Models\Provider;
 use App\Repositories\Interfaces\OrderRepositoryInterface;
-use App\Services\OrderService;
 use App\Services\ProviderOrderService;
 use App\Services\WalletService;
 use Bavix\Wallet\Internal\Exceptions\ExceptionInterface;
@@ -63,9 +62,6 @@ class OrderController extends Controller
      */
     public function getProviderOrders(Request $request): JsonResponse
     {
-        $provider = $request->user();
-
-//        $orders = $this->orderRepository->getOrdersForProvider($provider);
         $provider = request()->user();
         $status = request()->status;
         if ($status) {
@@ -94,42 +90,6 @@ class OrderController extends Controller
     }
 
 
-
-
-//    public function accept($orderId): JsonResponse
-//    {
-//        $provider = request()->user();
-//        $order = $this->orderRepository->find($orderId);
-//
-//        $order = Order::availableToAccept()->where('id', $orderId)->first();
-//        if ($order && $order->isAvailableToAccept()) {
-//        if ($order && $this->orderRepository->isAvailableToBeCanceledByProvider($order)) {
-//
-//                $order->provider_id = $provider->id;
-//            $order->save();
-//            return $this->respondSuccess('Order accepted successfully');
-//        }
-//        return $this->respondNotFound();
-//    }
-
-    /**
-     * Mark the order as comig.
-     */
-//    public function updateOrderToComing($orderId): JsonResponse
-//    {
-//        $provider = request()->user();
-////        $order = Order::where('id', $orderId)
-////            ->where('provider_id', $provider->id)
-////            ->first();
-//        $order = $this->orderRepository->find($orderId);
-//
-//        if ($order && $this->orderRepository->isOrderAvailableToBeComingByProvider($order, $provider)) {
-//            $this->orderRepository->updateOrderToComing($order);
-//            return $this->respondSuccess('Order updated successfully');
-//        }
-//
-//        return $this->respondNotFound();
-//    }
     public function updateOrderToComing($orderId): JsonResponse
     {
         $provider = request()->user();
@@ -143,20 +103,6 @@ class OrderController extends Controller
     }
 
 
-    /**
-     * Mark the order as alomst done.
-     */
-//    public function updateOrderToAlmostDone($orderId): JsonResponse
-//    {
-//        $provider = request()->user();
-//        $order = $this->orderRepository->find($orderId);
-//        if ($order && $this->orderRepository->isOrderAvailableToBeAlmostDoneByProvider($order, $provider)) {
-//            $this->orderRepository->updateOrderToAlmostDone($order);
-//            return $this->respondSuccess('Order almost done successfully');
-//        }
-//
-//        return $this->respondNotFound();
-//    }
     public function updateOrderToAlmostDone($orderId): JsonResponse
     {
         $provider = request()->user();
@@ -174,39 +120,8 @@ class OrderController extends Controller
      * Mark the order as done.
      * @throws ExceptionInterface
      */
-//    public function updateOrderToDone(Request $request, $orderId)
-//    {
-//        $request->validate([
-//            'payment_method' => ['required', Rule::in(['cash', 'wallet'])],
-//        ]);
-//        $provider = request()->user();
-//        $order = $this->orderRepository->find($orderId);
-//
-//
-//        if (!$order || !$this->orderRepository->isOrderAvailableToBeDoneByProvider($order, $provider)) {
-//            return $this->respondNotFound();
-//        }
-////        DB::transaction(function () use ($order) {
-//            if ($request->payment_method == 'cash') {
-//                return  $payReesponse = (new \App\Services\WalletService())->payCash($order);
-//            } elseif ($request->payment_method == 'wallet'){
-//                $payReesponse =  (new \App\Services\WalletService())->payByWallet($order);
-//            }
-//
-//            if (!$payReesponse['status']) {
-//                return $this->respondError($payReesponse['message']);
-//            }
-//            $this->orderRepository->updateOrderToDone($order);
-//
-//            return $this->respondSuccess('Order done successfully');
-//    }
-
     public function updateOrderToDone(Request $request, $orderId): JsonResponse
     {
-//        $request->validate([
-//            'payment_method' => ['required', Rule::in(['cash', 'wallet'])],
-//        ]);
-
         $provider = request()->user();
         $response = $this->orderService->updateOrderToDone($request, $orderId, $provider);
 
@@ -244,7 +159,6 @@ class OrderController extends Controller
             ],
             'message' => '',
         ], 200);
-        return $this->respondWithResource(OrderDetailResource::collection($orderDetails), '');
     }
 
 }

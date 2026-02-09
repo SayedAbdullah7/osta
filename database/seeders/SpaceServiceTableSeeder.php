@@ -28,7 +28,10 @@ class SpaceServiceTableSeeder extends Seeder
             foreach ($service->subServices as $subService) {
                 $spaces->each(fn($space) => $space->subServices()->attach(
                     [$subService->id],
-                    ['max_price' => rand(50, 200)] // Adjust max_price as needed
+                    [
+                        'max_price' => rand(50, 200), // Adjust max_price as needed
+                        'description' => 'وصف عشوائي للخدمة في المساحة ' . $space->name . ' - ' . $subService->name
+                    ]
                 ));
             }
 

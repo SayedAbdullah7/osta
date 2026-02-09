@@ -37,6 +37,14 @@ class Service extends Model  implements HasMedia ,TranslatableContract
     }
 
     /**
+     * Get the sub service categories for the service.
+     */
+    public function subServiceCategories(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SubServiceCategory::class);
+    }
+
+    /**
      * The spaces that belong to the service.
      */
     public function spaces(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

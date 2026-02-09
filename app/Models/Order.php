@@ -72,6 +72,8 @@ class Order extends Model implements HasMedia
 ////            $builder->where('created_at', '>=', now()->subHours(48));
 ////        });
 //    }
+protected $guarded = ['id'];
+
 
     /**
      * The attributes that should be cast.
@@ -234,19 +236,9 @@ class Order extends Model implements HasMedia
             }
             $subService->pivot->max_price = $maxForSubService;
             $subService->pivot->save();
-
-
         }
 
         return $max;
-//        if ($this->subServices->count() > 0) {
-//            $max = 0;
-//            foreach ($this->subServices as $subService) {
-//                $max += ($subService->pivot->quantity * $subService->max_price);
-//            }
-//            return $max;
-//        }
-//        return INF;
     }
 
     public function conversation(): \Illuminate\Database\Eloquent\Relations\MorphOne

@@ -25,6 +25,15 @@ class SubService extends Model   implements HasMedia,TranslatableContract
     {
         return $this->belongsTo(Service::class);
     }
+
+    /**
+     * Get the category that owns the sub service.
+     */
+    public function category()
+    {
+        return $this->belongsTo(SubServiceCategory::class);
+    }
+
     /**
      * The spaces that belong to the service.
      */
@@ -37,6 +46,6 @@ class SubService extends Model   implements HasMedia,TranslatableContract
     public function spaces()
     {
         return $this->belongsToMany(Space::class, 'space_sub_service')
-            ->withPivot('max_price');
+            ->withPivot('max_price', 'description');
     }
 }

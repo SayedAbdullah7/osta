@@ -21,7 +21,7 @@ class Space extends Model
 
     public function subServices(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(SubService::class)
-            ->withPivot('max_price'); // Include additional pivot columns
+        return $this->belongsToMany(SubService::class, 'space_sub_service')
+            ->withPivot('max_price', 'description'); // Include additional pivot columns
     }
 }

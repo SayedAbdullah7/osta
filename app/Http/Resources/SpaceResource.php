@@ -20,6 +20,7 @@ class SpaceResource extends JsonResource
 //            'sub_service_id' => $this->whenLoaded('pivot', $this->pivot->sub_service_id),
 //            'space_id' => $this->whenLoaded('pivot', $this->pivot->space_id),
             'max_price' => $this->whenLoaded('pivot', $this->pivot->max_price),
+            'description' => $this->whenLoaded('pivot', $this->pivot->description ?? null),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
 //            'pivot' => [

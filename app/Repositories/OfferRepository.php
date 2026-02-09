@@ -82,9 +82,9 @@ class OfferRepository
         return Offer::where('provider_id', $providerId)
             ->where('order_id', $orderId)
             ->where(function ($query) {
-                $query->where('status', OrderStatusEnum::PENDING)
+                $query->where('status', OfferStatusEnum::PENDING)
                     ->orWhere(function ($query2) {
-                        $query2->where('status', OrderStatusEnum::REJECTED)
+                        $query2->where('status', OfferStatusEnum::REJECTED)
                             ->where('is_second', true);
                     });
             })
@@ -97,7 +97,7 @@ class OfferRepository
             $query->where('order_id', $orderId);
         })->when($providerId, function ($query) use ($providerId) {
             $query->where('provider_id', $providerId);
-        })->where('status', OrderStatusEnum::PENDING)
+        })->where('status', OfferStatusEnum::PENDING)
             ->where('created_at', '<', now()->subMinutes(ProviderOfferService::MAX_OFFER_TIME))
             ->delete();
     }

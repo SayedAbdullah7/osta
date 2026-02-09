@@ -56,14 +56,6 @@ class ProviderOfferService
             return $this->respondError('Cannot send more than one offer for the same order');
         }
 
-//        if (!$this->canProviderSendMoreOffers($providerId)) {
-//            return $this->respondError('Maximum number of offers for the provider reached');
-//        }
-
-//        if (!$this->canOrderAcceptMoreOffers($order)) {
-//            return $this->respondError('Maximum number of offers for the order reached');
-//        }
-
         $oldOffer = $this->offerRepository->findOffer($providerId, $orderId, OfferStatusEnum::REJECTED, false);
 
         $time = $data['time'] ?? 'now';
@@ -76,7 +68,7 @@ class ProviderOfferService
 
 
              $this->offerRepository->updateOffer($oldOffer, [
-                'status' => OrderStatusEnum::PENDING,
+                'status' => OfferStatusEnum::PENDING,
                 'is_second' => true,
                 'price' => $price,
                 'arrival_time' => $time,
@@ -95,7 +87,7 @@ class ProviderOfferService
                 'provider_id' => $providerId,
                 'price' => $price,
                 'arrival_time' => $time,
-                'status' => OrderStatusEnum::PENDING,
+                'status' => OfferStatusEnum::PENDING,
                 'longitude' => $data['longitude'],
                 'latitude' => $data['latitude'],
                 'distance' => $distance,
@@ -132,13 +124,12 @@ class ProviderOfferService
 
     private function canProviderSendMoreOffers(int $providerId): bool
     {
-        return $this->offerRepository->countOffersByProvider($providerId, OrderStatusEnum::PENDING->value) < self::MAX_OFFERS_PER_PROVIDER;
+        return $this->offerRepository->countOffersByProvider($providerId, OfferStatusEnum::PENDING->value) < self::MAX_OFFERS_PER_PROVIDER;
     }
 
     private function canOrderAcceptMoreOffers(Order $order): bool
     {
         return $order->offers_count < self::MAX_OFFERS_PER_ORDER;
-        return $this->offerRepository->countOffersByOrder($order->id, OrderStatusEnum::PENDING->value) < self::MAX_OFFERS_PER_ORDER;
     }
 
     private function autoRemoveOldOffers(int $orderId = null, int $providerId = null): void

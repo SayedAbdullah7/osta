@@ -36,7 +36,7 @@ class Invoice extends Model
     // Calculate payments and update status
     public function updatePaymentStatus(): void
     {
-        $totalPaid = $this->transactions()->sum('amount');
+        $totalPaid = $this->payments()->sum('amount');
 
         if ($totalPaid < $this->total) {
             $this->payment_status = 'unpaid';

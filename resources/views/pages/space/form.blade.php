@@ -15,7 +15,16 @@ route('space_sub_service.update', [$model->space_id, $model->sub_service_id])
         <!-- Max Price Input -->
         <x-group-input-text label="Max Price" type="number" value="{{ isset($model) ? $model->max_price : '' }}" name="max_price" step="0.01"></x-group-input-text>
 
-
+        <!-- Description Input -->
+        <div class="fv-row mb-7">
+            <label class="fw-semibold fs-6 mb-2 text-capitalize">Description</label>
+            <textarea
+                class="form-control form-control-solid mb-3 mb-lg-0"
+                name="description"
+                id="description"
+                rows="4"
+            >{{ isset($model) ? $model->description : old('description') }}</textarea>
+        </div>
         <!-- Service Selection -->
         <x-select
             label="sub service"

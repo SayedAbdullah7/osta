@@ -23,7 +23,7 @@ class SpaceSubService extends Model
 //    protected $keyType = 'array';
 
     // Define the fillable fields
-    protected $fillable = ['space_id', 'sub_service_id', 'max_price'];
+    protected $fillable = ['space_id', 'sub_service_id', 'max_price', 'description'];
 
     // Disable timestamps if not used
     public $timestamps = false;
