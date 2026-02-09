@@ -6,53 +6,57 @@ use App\Models\Level;
 use App\Models\Provider;
 use App\Models\ProviderMetric;
 use App\Models\ProviderLevel;
+use App\Events\ProviderLevelPromoted;
+use App\Events\ProviderLevelDemoted;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Event;
 use Carbon\Carbon;
 
 class LevelEvaluationService
 {
     public function evaluateProvider(Provider $provider)
     {
-        // new logic to handle grace period for orders
-//        echo $provider->getCurrentLevel();
-//        return $provider->getCurrentLevel();
-        $currentLevel = $provider->getCurrentLevel();
-        $providerLevel = $provider->currentProviderLevel;
-        $currentMetrics = $this->calculateCurrentMetrics($provider);
-        $previousMonthMetrics = $this->getPreviousMonthMetrics($provider);
+        try {
+            $currentLevel = $provider->getCurrentLevel();
+            $providerLevel = $provider->currentProviderLevel;
+            $currentMetrics = $this->calculateCurrentMetrics($provider);
+            $previousMonthMetrics = $this->getPreviousMonthMetrics($provider);
 
-        // Check if in grace period for orders
-        $inGracePeriod = $currentLevel && $this->isInGracePeriod($provider, $currentLevel);
+            // Check if in grace period for orders
+            $inGracePeriod = $currentLevel && $this->isInGracePeriod($provider, $currentLevel);
 
-        if ($inGracePeriod) {
-            // Combine current and previous month's orders
-            $effectiveMetrics = $this->getGracePeriodMetrics(
-                $currentMetrics,
-                $previousMonthMetrics,
-                $currentLevel
-            );
+            if ($inGracePeriod) {
+                // Combine current and previous month's orders
+                $effectiveMetrics = $this->getGracePeriodMetrics(
+                    $currentMetrics,
+                    $previousMonthMetrics,
+                    $currentLevel
+                );
 
-            $potentialLevel = $this->findHighestQualifiedLevel($effectiveMetrics);
-        } else {
-            $potentialLevel = $this->findHighestQualifiedLevel($currentMetrics);
-        }
-        // end of new logic
+                $potentialLevel = $this->findHighestQualifiedLevel($effectiveMetrics);
+            } else {
+                $potentialLevel = $this->findHighestQualifiedLevel($currentMetrics);
+            }
 
-        // Rest of your evaluation logic...
+            // Check for promotion
+            if ($potentialLevel && (!$currentLevel || $potentialLevel->level > $currentLevel->level)) {
+                $this->promoteProvider($provider, $potentialLevel);
+                return;
+            }
 
-//        $currentMetrics = $this->calculateCurrentMetrics($provider);
-//        $currentLevel = $provider->currentLevel();
-//
-//        $potentialLevel = $this->findHighestQualifiedLevel($currentMetrics);
-//        echo 'potentialLevel' .$potentialLevel;
-
-        if ($potentialLevel && (!$currentLevel || $potentialLevel->level > $currentLevel->level)) {
-            $this->promoteProvider($provider, $potentialLevel);
-            return;
-        }
-
-        if ($currentLevel && $this->shouldDemoteProvider($provider, $currentLevel, $currentMetrics)) {
-            $this->demoteProvider($provider, $currentLevel);
+            // Check for demotion
+            if ($currentLevel && $this->shouldDemoteProvider($provider, $currentLevel, $currentMetrics)) {
+                $this->demoteProvider($provider, $currentLevel);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to evaluate provider level', [
+                'provider_id' => $provider->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
     }
 
@@ -89,11 +93,22 @@ class LevelEvaluationService
         ];
     }
 
+    /**
+     * Clear the cached levels (call this when levels are updated)
+     */
+    public static function clearLevelsCache(): void
+    {
+        Cache::forget('active_levels_ordered');
+    }
+
     public function findHighestQualifiedLevel(array $metrics): ?Level
     {
-        $levels = Level::active()
-            ->orderByDesc('level')
-            ->get();
+        // Cache levels for 1 hour (levels rarely change)
+        $levels = Cache::remember('active_levels_ordered', 3600, function () {
+            return Level::active()
+                ->orderByDesc('level')
+                ->get();
+        });
 
         foreach ($levels as $level) {
             if ($this->meetsRequirements($metrics, $level->requirements)) {
@@ -122,23 +137,43 @@ class LevelEvaluationService
 
     public function promoteProvider(Provider $provider, Level $newLevel)
     {
-        DB::transaction(function () use ($provider, $newLevel) {
-            if ($provider->currentProviderLevel){
-                $provider->levels()->updateExistingPivot(
-                    $provider->currentLevel->id,
-                    ['is_current' => false]
-                );
-            }
+        try {
+            $oldLevel = $provider->getCurrentLevel();
 
+            DB::transaction(function () use ($provider, $newLevel) {
+                if ($provider->currentProviderLevel){
+                    $provider->levels()->updateExistingPivot(
+                        $provider->currentLevel->id,
+                        ['is_current' => false]
+                    );
+                }
 
-            $provider->levels()->attach($newLevel->id, [
-                'achieved_at' => now(),
-                'is_current' => true,
-                'valid_until' => $this->calculateLevelExpiry($newLevel)
+                $provider->levels()->attach($newLevel->id, [
+                    'achieved_at' => now(),
+                    'is_current' => true,
+                    'valid_until' => $this->calculateLevelExpiry($newLevel)
+                ]);
+
+                $this->applyLevelBenefits($provider, $newLevel);
+            });
+
+            Log::info('Provider level promoted', [
+                'provider_id' => $provider->id,
+                'old_level' => $oldLevel ? $oldLevel->name : 'none',
+                'new_level' => $newLevel->name,
+                'new_level_id' => $newLevel->id,
             ]);
 
-            $this->applyLevelBenefits($provider, $newLevel);
-        });
+            // Dispatch event for promotion
+            Event::dispatch(new ProviderLevelPromoted($provider, $newLevel, $oldLevel));
+        } catch (\Exception $e) {
+            Log::error('Failed to promote provider level', [
+                'provider_id' => $provider->id,
+                'new_level_id' => $newLevel->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
     }
 
     protected function calculateLevelExpiry(Level $level): ?Carbon
@@ -177,22 +212,41 @@ class LevelEvaluationService
 
     protected function demoteProvider(Provider $provider, Level $currentLevel)
     {
-        $previousLevel = $currentLevel->previousLevel();
+        try {
+            $previousLevel = $currentLevel->previousLevel();
 
-        DB::transaction(function () use ($provider, $currentLevel, $previousLevel) {
-            $provider->levels()->updateExistingPivot(
-                $currentLevel->id,
-                ['is_current' => false]
-            );
+            DB::transaction(function () use ($provider, $currentLevel, $previousLevel) {
+                $provider->levels()->updateExistingPivot(
+                    $currentLevel->id,
+                    ['is_current' => false]
+                );
 
-            if ($previousLevel) {
-                $provider->levels()->attach($previousLevel->id, [
-                    'achieved_at' => now(),
-                    'is_current' => true,
-                    'valid_until' => $this->calculateLevelExpiry($previousLevel)
-                ]);
-            }
-        });
+                if ($previousLevel) {
+                    $provider->levels()->attach($previousLevel->id, [
+                        'achieved_at' => now(),
+                        'is_current' => true,
+                        'valid_until' => $this->calculateLevelExpiry($previousLevel)
+                    ]);
+                }
+            });
+
+            Log::info('Provider level demoted', [
+                'provider_id' => $provider->id,
+                'old_level' => $currentLevel->name,
+                'new_level' => $previousLevel ? $previousLevel->name : 'none',
+                'new_level_id' => $previousLevel ? $previousLevel->id : null,
+            ]);
+
+            // Dispatch event for demotion
+            Event::dispatch(new ProviderLevelDemoted($provider, $currentLevel, $previousLevel));
+        } catch (\Exception $e) {
+            Log::error('Failed to demote provider level', [
+                'provider_id' => $provider->id,
+                'current_level_id' => $currentLevel->id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
     }
 
 //5. Usage Examples
@@ -259,15 +313,17 @@ class LevelEvaluationService
     protected function getPreviousMonthMetrics(Provider $provider): array
     {
         $lastMonth = now()->subMonth()->startOfMonth();
-        $metrics = ProviderMetric::where([
-            'provider_id' => $provider->id,
-            'month' => $lastMonth
-        ])->first();
+        $metrics = $provider->metrics()
+            ->forPeriod($lastMonth)
+            ->first();
 
         return $metrics ? $metrics->toArray() : [
             'completed_orders' => 0,
             'average_rating' => 0,
-            // ... other defaults
+            'cancellation_rate' => 0,
+            'completion_rate' => 0,
+            'repeat_customers' => 0,
+            'response_time_avg' => 0,
         ];
     }
 
@@ -287,7 +343,8 @@ class LevelEvaluationService
     protected function initializeProviderLevel(Provider $provider): void
     {
         $defaultLevel = Level::orderBy('level')->first();
-        $this->evaluateProvider($provider);
+
+        // Create default level first, then evaluate
         if ($defaultLevel) {
             ProviderLevel::create([
                 'provider_id' => $provider->id,
@@ -295,6 +352,9 @@ class LevelEvaluationService
                 'achieved_at' => now(),
                 'is_current' => true
             ]);
+
+            // Now evaluate provider to check if they qualify for a higher level
+            $this->evaluateProvider($provider);
         }
     }
 

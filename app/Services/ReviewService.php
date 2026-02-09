@@ -11,9 +11,21 @@ use App\Models\UserAction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\MetricUpdateService;
+use App\Services\LevelEvaluationService;
 
 class ReviewService
 {
+    protected MetricUpdateService $metricUpdateService;
+    protected LevelEvaluationService $levelEvaluationService;
+
+    public function __construct(
+        MetricUpdateService $metricUpdateService,
+        LevelEvaluationService $levelEvaluationService
+    ) {
+        $this->metricUpdateService = $metricUpdateService;
+        $this->levelEvaluationService = $levelEvaluationService;
+    }
 
     public function skip($order_id)
     {
@@ -60,9 +72,19 @@ class ReviewService
             $review->reviewed()->associate($order->user);
         }
 
-        DB::transaction(function () use ($review, $orderId) {
+        DB::transaction(function () use ($review, $orderId, $order) {
             $review->save();
             $this->updateReviewStatistics($review->reviewed, $review->rating);
+
+            // If the review is for a provider, update ProviderMetric and evaluate level
+            if ($review->reviewed instanceof Provider) {
+                $provider = $review->reviewed;
+                // Update monthly metrics with the new rating only (incremental update, no order increment)
+                $this->metricUpdateService->updateRatingMetrics($provider, (float)$review->rating);
+                // Evaluate provider level after rating update
+                $this->levelEvaluationService->evaluateProvider($provider);
+            }
+
             $this->skip($orderId);
         });
 

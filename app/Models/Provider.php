@@ -244,19 +244,28 @@ class Provider extends Authenticatable implements HasMedia, Wallet
     // In your Provider model:
     public function getEffectiveOrderCount(): int
     {
-        if (!$this->getCurrentLevel()->hasGracePeriod()) {
-            return $this->currentMonthMetrics()->completed_orders;
+        $currentLevel = $this->getCurrentLevel();
+        
+        if (!$currentLevel || !$currentLevel->hasGracePeriod()) {
+            return $this->currentMonthMetrics ? (int)$this->currentMonthMetrics->completed_orders : 0;
         }
 
-        return $this->currentMonthMetrics()->completed_orders +
-        $this->metrics()
-            ->where('month', now()->subMonth()->startOfMonth())
+        $currentMonthOrders = $this->currentMonthMetrics ? (int)$this->currentMonthMetrics->completed_orders : 0;
+        $previousMonthOrders = $this->metrics()
+            ->previousMonth()
             ->value('completed_orders') ?? 0;
+
+        return $currentMonthOrders + (int)$previousMonthOrders;
     }
 
     public function isInGracePeriod(): bool
     {
+        $currentLevel = $this->getCurrentLevel();
+        if (!$currentLevel) {
+            return false;
+        }
+        
         return app(LevelEvaluationService::class)
-            ->isInGracePeriod($this, $this->getCurrentLevel());
+            ->isInGracePeriod($this, $currentLevel);
     }
 }

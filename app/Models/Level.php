@@ -5,10 +5,26 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+use App\Services\LevelEvaluationService;
 
 class Level extends Model
 {
     use HasFactory;
+
+    protected static function booted()
+    {
+        parent::boot();
+
+        // Clear levels cache when a level is created, updated, or deleted
+        static::saved(function () {
+            LevelEvaluationService::clearLevelsCache();
+        });
+
+        static::deleted(function () {
+            LevelEvaluationService::clearLevelsCache();
+        });
+    }
 
 //    protected $fillable = ['name','level', 'orders_required', 'next_level_id'];
 //

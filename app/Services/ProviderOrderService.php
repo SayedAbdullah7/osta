@@ -22,15 +22,26 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use App\Services\ProviderStatisticService;
+use App\Services\MetricUpdateService;
+use App\Services\LevelEvaluationService;
+
 class ProviderOrderService
 {
     private OrderRepositoryInterface $orderRepository;
     protected \App\Services\ProviderStatisticService $providerStatisticsService;
+    protected MetricUpdateService $metricUpdateService;
+    protected LevelEvaluationService $levelEvaluationService;
 
-    public function __construct(OrderRepositoryInterface $orderRepository, ProviderStatisticService $providerStatisticsService)
-    {
+    public function __construct(
+        OrderRepositoryInterface $orderRepository,
+        ProviderStatisticService $providerStatisticsService,
+        MetricUpdateService $metricUpdateService,
+        LevelEvaluationService $levelEvaluationService
+    ) {
         $this->orderRepository = $orderRepository;
         $this->providerStatisticsService = $providerStatisticsService;
+        $this->metricUpdateService = $metricUpdateService;
+        $this->levelEvaluationService = $levelEvaluationService;
     }
 
 
@@ -82,8 +93,16 @@ class ProviderOrderService
         }
 
         $this->orderRepository->updateOrderToDone($order);
+
+        // Update old statistics (keep for backward compatibility)
         $this->providerStatisticsService->handleOrderCompletion($providerId);
-//        $this->
+
+        // Update new monthly metrics (ProviderMetric) - incremental update
+        $this->metricUpdateService->updateOrderMetrics($order->provider);
+
+        // Evaluate and update provider level if needed
+        $this->levelEvaluationService->evaluateProvider($order->provider);
+
         $this->pushToSocket($order);
 
         $this->updateReviewStatisticAfterAction($order->provider);
@@ -104,7 +123,6 @@ class ProviderOrderService
 
     public function updateOrderPrice($order, $newPrice)
     {
-//        $order = $this->orderRepository->find($orderId);
         return DB::transaction(function () use ($order, $newPrice) {
             $order->price = $newPrice;
             $walletService = app(WalletService::class);
@@ -112,9 +130,6 @@ class ProviderOrderService
             if (!$invoice) {
                 $walletService->createInvoice($order);
             }
-//            if ($invoice->payment_status == 'paid') {
-//                $this->notFoundException('this action is not available');
-//            }
             $walletService->updateInvoiceAdditionalCost($invoice, $order);
             $order->save();
             return $order;

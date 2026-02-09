@@ -32,6 +32,12 @@ class EventServiceProvider extends ServiceProvider
         \App\Events\ProviderLevelUp::class => [
             \App\Listeners\SendLevelUpNotification::class,
         ],
+        \App\Events\ProviderLevelPromoted::class => [
+            // Add listeners here for promotion events (e.g., notifications, logging)
+        ],
+        \App\Events\ProviderLevelDemoted::class => [
+            // Add listeners here for demotion events (e.g., notifications, logging)
+        ],
     ];
 
     /**
